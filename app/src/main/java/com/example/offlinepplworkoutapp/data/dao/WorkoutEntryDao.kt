@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 interface WorkoutEntryDao {
 
     @Query("""
-        SELECT we.id, we.day_id as dayId, we.exercise_id as exerciseId, we.sets, we.reps, 
+        SELECT we.id, we.day_id as dayId, we.exercise_id as exerciseId, we.sets, we.reps, we.isCompleted,
                e.name as exerciseName, e.isCompound 
         FROM workout_entries we
         INNER JOIN exercises e ON we.exercise_id = e.id
@@ -45,6 +45,7 @@ data class WorkoutEntryWithExercise(
     val exerciseId: Int,
     val sets: Int,
     val reps: Int,
+    val isCompleted: Boolean,
     val exerciseName: String,
     val isCompound: Boolean
 )

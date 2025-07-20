@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [Exercise::class, WorkoutDay::class, WorkoutEntry::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class PPLWorkoutDatabase : RoomDatabase() {
@@ -59,6 +59,7 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
                     "ppl_workout_database"
                 )
                     .addCallback(PPLWorkoutDatabaseCallback())
+                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

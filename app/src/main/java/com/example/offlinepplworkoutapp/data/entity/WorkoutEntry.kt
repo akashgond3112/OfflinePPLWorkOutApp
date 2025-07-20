@@ -35,5 +35,6 @@ data class WorkoutEntry(
     @ColumnInfo(name = "exercise_id")
     val exerciseId: Int,
     val sets: Int,
-    val reps: Int
+    val reps: Int,
+    val isCompleted: Boolean = false
 )

@@ -27,6 +27,13 @@ class DailyWorkoutViewModel(
     private val _currentDate = MutableStateFlow(dateFormat.format(Date()))
     val currentDate: StateFlow<String> = _currentDate.asStateFlow()
 
+    private val _completionProgress = MutableStateFlow(0f)
+    val completionProgress: StateFlow<Float> = _completionProgress.asStateFlow()
+
+    // Debug mode: allows overriding the current date for testing
+    private val _debugDate = MutableStateFlow<String?>(null)
+    val debugDate: StateFlow<String?> = _debugDate.asStateFlow()
+
     init {
         loadTodaysWorkout()
     }
@@ -37,6 +44,7 @@ class DailyWorkoutViewModel(
             repository.getTodaysWorkout().collect { exercises ->
                 _todaysWorkout.value = exercises
                 _isLoading.value = false
+                updateCompletionProgress(exercises)
             }
         }
     }
@@ -48,8 +56,42 @@ class DailyWorkoutViewModel(
             repository.getWorkoutForDate(date).collect { exercises ->
                 _todaysWorkout.value = exercises
                 _isLoading.value = false
+                updateCompletionProgress(exercises)
             }
         }
+    }
+
+    // Debug function to simulate different days
+    fun setDebugDate(date: String?) {
+        _debugDate.value = date
+        val dateToUse = date ?: dateFormat.format(Date())
+        loadWorkoutForDate(dateToUse)
+    }
+
+    fun toggleExerciseCompletion(entryId: Int) {
+        viewModelScope.launch {
+            repository.toggleExerciseCompletion(entryId)
+        }
+    }
+
+    fun markExerciseComplete(entryId: Int, isCompleted: Boolean) {
+        viewModelScope.launch {
+            repository.markExerciseComplete(entryId, isCompleted)
+        }
+    }
+
+    private fun updateCompletionProgress(exercises: List<WorkoutEntryWithExercise>) {
+        if (exercises.isEmpty()) {
+            _completionProgress.value = 0f
+            return
+        }
+
+        val completedCount = exercises.count { it.isCompleted }
+        _completionProgress.value = completedCount.toFloat() / exercises.size.toFloat()
+    }
+
+    fun getCompletionPercentage(): Int {
+        return (_completionProgress.value * 100).toInt()
     }
 
     fun getCurrentDayName(): String {

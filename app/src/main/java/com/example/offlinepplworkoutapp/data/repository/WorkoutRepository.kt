@@ -127,6 +127,22 @@ class WorkoutRepository(
     suspend fun updateWorkoutEntry(entry: WorkoutEntry) {
         workoutEntryDao.update(entry)
     }
+
+    suspend fun toggleExerciseCompletion(entryId: Int) {
+        val entry = workoutEntryDao.getWorkoutEntryById(entryId)
+        entry?.let {
+            val updatedEntry = it.copy(isCompleted = !it.isCompleted)
+            workoutEntryDao.update(updatedEntry)
+        }
+    }
+
+    suspend fun markExerciseComplete(entryId: Int, isCompleted: Boolean) {
+        val entry = workoutEntryDao.getWorkoutEntryById(entryId)
+        entry?.let {
+            val updatedEntry = it.copy(isCompleted = isCompleted)
+            workoutEntryDao.update(updatedEntry)
+        }
+    }
 }
 
 enum class WorkoutType {
