@@ -1,0 +1,156 @@
+**Agent Prompt: Build an Offline‑First PPL Workout App**
+
+1. **Project Setup & Tech Stack**
+
+   * Use a light, on‑device relational DB (e.g. SQLite or Realm).
+   * No cloud services—everything lives on the device.
+   * Include only essential native modules: filesystem, local notifications, geolocation, background tasks/timers.
+
+2. **Data Model & Persistence**
+
+   * **WorkoutDay**
+
+     * `id` (PK, auto‑inc)
+     * `date` (ISO YYYY‑MM‑DD)
+   * **Exercise**
+
+     * `id` (PK)
+     * `name` (string)
+     * `isCompound` (bool)
+   * **WorkoutEntry** (links Day ⇆ Exercise)
+
+     * `id` (PK)
+     * `day_id` (FK → WorkoutDay.id)
+     * `exercise_id` (FK → Exercise.id)
+     * `sets` (int)
+     * `reps` (int)
+   * On first launch, prepopulate the DB with your 6‑day PPL template.
+   * Data cleanup: Schedule a background job that deletes any `WorkoutDay` rows older than 30 days.
+
+3. **Core Screens & Flows**
+
+   1. **Daily View**
+
+      * Shows today’s date and list of `WorkoutEntry` for that day.
+      * Each entry displays exercise name + “3 × 8–12 reps” (or whatever sets/reps).
+   2. **Exercise Detail/Edit**
+
+      * Tap an entry to adjust sets/reps or mark complete.
+   3. **History / Calendar**
+
+      * Swipe back/forward to see past or future days (with data or placeholders).
+   4. **Settings**
+
+      * Toggle “Location‑based reminders” ON/OFF.
+      * Manage saved “Gym location” pins.
+      * Show “Last DB cleanup” timestamp.
+
+4. **Location‑Based Notifications**
+
+   * On first use of reminders, request **Location Always** and **Notifications** permissions.
+   * Let user **pin** one or more gym locations (lat/lng).
+   * When the device enters a pinned location during your usual workout time window (configurable, e.g. 5 pm–8 pm), fire a **local notification**: “Time for today’s push workout!”
+   * Use geofencing APIs (Android GeofencingClient / iOS CLLocationManager).
+
+5. **Background Tasks**
+
+   * **Daily Reset**: At midnight, load the next day’s `WorkoutEntry` into view.
+   * **Monthly Cleanup**: Once every 30 days run a background job (WorkManager / Headless JS / BackgroundFetch) that purges DB rows older than 30 days.
+
+6. **Memory & Storage Management**
+
+   * Keep in‑memory state minimal—load only today’s entries at launch.
+   * Close DB connections when idle.
+   * Clear any cached images or temp files older than 30 days in the same monthly cleanup job.
+
+7. **Permissions & Privacy**
+
+   * Clearly explain why you need location & notifications in the Settings screen.
+   * All data remains on device—no syncing.
+   * Provide a “Clear all data” button under Settings.
+
+8. **Error Handling & UX**
+
+   * Show friendly alerts for DB errors, permission denials, or geofence failures.
+   * If location permissions are denied, disable reminders and grey out the toggle.
+   * Provide offline‑ready skeleton screens (no spinners waiting on network).
+
+9. **Testing & QA**
+
+   * Write unit tests for DB CRUD operations, data‑purge logic, and notification scheduling.
+   * Use integration tests or end‑to‑end (e.g. Detox / Flutter Driver) to cover:
+
+     * Day‑to‑day navigation
+     * Editing sets/reps
+     * Geofence entry → notification
+     * Monthly cleanup (simulate date jump)
+
+10. **Deliverables**
+
+    * A runnable app bundle (APK + IPA) that installs cleanly on device.
+    * README with setup steps, platform‑specific notes (Android vs iOS), and testing instructions.
+    * Post‑install walkthrough screen to guide the user through permissions and gym‑location pinning.
+
+## Monday – Push Day (Chest, Shoulders, Triceps)
+
+* **Barbell Bench Press (Compound):** 4×6–8 reps – Rest 90–120s (Targets chest, anterior delts, triceps).
+* **Standing Overhead Press (Compound):** 3×8–10 reps – Rest 90–120s (Shoulders, triceps).
+* **Incline Dumbbell Press (Compound):** 3×8–12 reps – Rest 90s (Upper chest, front delts).
+* **Dumbbell Lateral Raise (Isolation):** 3×12–15 reps – Rest 60s (Lateral delts).
+* **Cable Triceps Pushdown (Isolation):** 3×10–12 reps – Rest 60s (Triceps).
+
+*(Optional:* Superset Lateral Raises with Triceps Pushdowns to increase intensity.\*)
+
+## Tuesday – Pull Day (Back, Biceps)
+
+* **Deadlift (Compound):** 3×5–8 reps – Rest 120s (Full posterior chain: back, glutes, hamstrings).
+* **Pull-Ups or Lat Pulldowns (Compound):** 3×8–10 reps – Rest 90s (Lats, upper back).
+* **Bent-Over Barbell Row (Compound):** 3×8–12 reps – Rest 90s (Mid-back, lats).
+* **Face Pull (Isolation):** 3×12–15 reps – Rest 60s (Rear delts, traps).
+* **Barbell Biceps Curl (Isolation):** 3×8–12 reps – Rest 60s (Biceps).
+* **Hammer Curl (Isolation):** 2×10–12 reps – Rest 60s (Forearms/brachialis).
+
+*(Optional:* Superset Face Pulls with Hammer Curls to maintain training volume while saving time.\*)
+
+## Wednesday – Legs Day (Quads, Hamstrings, Glutes, Calves)
+
+* **Back Squat (Compound):** 4×6–8 reps – Rest 120s (Quads, glutes).
+* **Romanian Deadlift (Compound):** 3×8–12 reps – Rest 90s (Hamstrings, glutes).
+* **Leg Press (Compound):** 3×10–12 reps – Rest 90s (Quads, glutes).
+* **Lying Leg Curl (Isolation):** 3×10–12 reps – Rest 60s (Hamstrings).
+* **Seated Calf Raise (Isolation):** 4×12–15 reps – Rest 60s (Calves).
+
+*(Optional:* Perform a drop-set on the final Leg Curl or Calf set to increase intensity.\*)
+
+## Thursday – Push Day (Chest, Shoulders, Triceps)
+
+* **Standing Overhead Press (Compound):** 4×6–8 reps – Rest 120s (Shoulders, triceps).
+* **Incline Barbell Press (Compound):** 3×8–12 reps – Rest 90s (Upper chest, shoulders).
+* **Weighted Dips (Compound):** 3×8–10 reps – Rest 90s (Chest, triceps).
+* **Cable Lateral Raise (Isolation):** 3×12–15 reps – Rest 60s (Lateral delts).
+* **Pec Deck or Dumbbell Fly (Isolation):** 3×12–15 reps – Rest 60s (Chest).
+* **Overhead Cable Triceps Extension (Isolation):** 3×10–12 reps – Rest 60s (Triceps).
+
+*(Optional:* Superset Lateral Raises with Chest Flyes to further stress the shoulders and chest.\*)
+
+## Friday – Pull Day (Back, Biceps)
+
+* **Pendlay or Bent-Over Row (Compound):** 4×6–10 reps – Rest 90–120s (Mid-back, lats).
+* **Weighted Pull-Ups or Wide-Grip Lat Pulldown (Compound):** 3×8–12 reps – Rest 90s (Lats, upper back).
+* **Dumbbell Shrug (Isolation):** 3×10–12 reps – Rest 60s (Traps).
+* **Face Pull (Isolation):** 3×12–15 reps – Rest 60s (Rear delts, upper back).
+* **EZ-Bar Biceps Curl (Isolation):** 3×8–12 reps – Rest 60s (Biceps).
+* **Reverse Grip or Preacher Curl (Isolation):** 2×10–12 reps – Rest 60s (Biceps/forearms).
+
+*(Optional:* Superset Shrugs with Face Pulls to target traps and rear delts with minimal rest.\*)
+
+## Saturday – Legs Day (Quads, Glutes, Hamstrings, Calves)
+
+* **Front Squat (Compound):** 4×6–8 reps – Rest 120s (Quads, glutes).
+* **Bulgarian Split Squat (Compound):** 3×8–10 reps (each leg) – Rest 90s (Quads, glutes).
+* **Barbell Hip Thrust (Compound):** 3×10–12 reps – Rest 90s (Glutes, hamstrings).
+* **Leg Extension (Isolation):** 3×12–15 reps – Rest 60s (Quads).
+* **Seated or Lying Leg Curl (Isolation):** 3×12–15 reps – Rest 60s (Hamstrings).
+* **Standing Calf Raise (Isolation):** 4×12–15 reps – Rest 60s (Calves).
+
+*(Optional:* Superset Leg Extensions with Leg Curls (agonist/antagonist) to increase intensity.\*)
