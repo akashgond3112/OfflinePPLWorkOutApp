@@ -41,17 +41,27 @@ class WorkoutRepository(
         val workoutType = getWorkoutTypeForDate(date)
         val exercises = getExercisesForWorkoutType(workoutType)
 
-        // Create workout entries
-        val entries = exercises.map { (exerciseId, sets, reps) ->
-            WorkoutEntry(
-                dayId = dayId,
-                exerciseId = exerciseId,
-                sets = sets,
-                reps = reps
-            )
+        // Debug logging to see what's happening
+        println("DEBUG: Creating workout for date: $date, type: $workoutType, exercises count: ${exercises.size}")
+
+        // Only create entries if we have exercises for this workout type
+        if (exercises.isNotEmpty()) {
+            // Create workout entries
+            val entries = exercises.map { (exerciseId, sets, reps) ->
+                WorkoutEntry(
+                    dayId = dayId,
+                    exerciseId = exerciseId,
+                    sets = sets,
+                    reps = reps
+                )
+            }
+
+            workoutEntryDao.insertAll(entries)
+            println("DEBUG: Inserted ${entries.size} workout entries for day $date")
+        } else {
+            println("DEBUG: No exercises found for workout type: $workoutType on date: $date")
         }
 
-        workoutEntryDao.insertAll(entries)
         return createdDay
     }
 
