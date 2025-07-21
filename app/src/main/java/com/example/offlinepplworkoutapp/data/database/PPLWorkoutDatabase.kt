@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [Exercise::class, WorkoutDay::class, WorkoutEntry::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class PPLWorkoutDatabase : RoomDatabase() {
@@ -33,6 +33,19 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
             INSTANCE?.let { database ->
                 CoroutineScope(Dispatchers.IO).launch {
                     populateDatabase(database.exerciseDao())
+                }
+            }
+        }
+
+        override fun onOpen(db: SupportSQLiteDatabase) {
+            super.onOpen(db)
+            // Ensure exercises are populated even if database already exists
+            INSTANCE?.let { database ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    val exerciseCount = database.exerciseDao().getExerciseCount()
+                    if (exerciseCount == 0) {
+                        populateDatabase(database.exerciseDao())
+                    }
                 }
             }
         }
@@ -60,7 +73,9 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
                 )
                     .addCallback(PPLWorkoutDatabaseCallback())
                     .fallbackToDestructiveMigration()
+                    // Force database recreation to ensure clean state
                     .build()
+
                 INSTANCE = instance
                 instance
             }
