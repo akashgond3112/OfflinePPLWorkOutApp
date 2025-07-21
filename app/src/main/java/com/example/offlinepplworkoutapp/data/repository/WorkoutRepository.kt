@@ -153,6 +153,14 @@ class WorkoutRepository(
             workoutEntryDao.update(updatedEntry)
         }
     }
+
+    suspend fun updateExerciseDetails(entryId: Int, sets: Int, reps: Int, isCompleted: Boolean) {
+        val entry = workoutEntryDao.getWorkoutEntryById(entryId)
+        entry?.let {
+            val updatedEntry = it.copy(sets = sets, reps = reps, isCompleted = isCompleted)
+            workoutEntryDao.update(updatedEntry)
+        }
+    }
 }
 
 enum class WorkoutType {
