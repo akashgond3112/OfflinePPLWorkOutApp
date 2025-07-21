@@ -80,6 +80,12 @@ class DailyWorkoutViewModel(
         }
     }
 
+    fun updateExercise(entryId: Int, sets: Int, reps: Int, isCompleted: Boolean) {
+        viewModelScope.launch {
+            repository.updateExerciseDetails(entryId, sets, reps, isCompleted)
+        }
+    }
+
     private fun updateCompletionProgress(exercises: List<WorkoutEntryWithExercise>) {
         if (exercises.isEmpty()) {
             _completionProgress.value = 0f
