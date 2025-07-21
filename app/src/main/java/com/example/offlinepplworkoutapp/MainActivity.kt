@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -26,6 +28,7 @@ import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise
 import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
 import com.example.offlinepplworkoutapp.data.entity.Exercise
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
+import com.example.offlinepplworkoutapp.ui.screens.ExerciseDetailScreen
 import com.example.offlinepplworkoutapp.ui.theme.OfflinePPLWorkOutAppTheme
 import com.example.offlinepplworkoutapp.ui.viewmodel.DailyWorkoutViewModel
 import com.example.offlinepplworkoutapp.ui.viewmodel.DailyWorkoutViewModelFactory
@@ -67,13 +70,14 @@ fun MainScreen(
     )
 
     var showDebugMenu by remember { mutableStateOf(false) }
+    var selectedExercise by remember { mutableStateOf<WorkoutEntryWithExercise?>(null) }
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
-            // Only show debug FAB in debug builds
-            if (IS_DEBUG_MODE) {
+            // Only show debug FAB in debug builds when not in exercise detail
+            if (IS_DEBUG_MODE && selectedExercise == null) {
                 FloatingActionButton(
                     onClick = { showDebugMenu = true },
                     containerColor = MaterialTheme.colorScheme.secondary
@@ -86,10 +90,23 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        DailyWorkoutScreen(
-            viewModel = viewModel,
-            modifier = Modifier.padding(innerPadding)
-        )
+        if (selectedExercise != null) {
+            // Show Exercise Detail Screen
+            ExerciseDetailScreen(
+                workoutEntry = selectedExercise!!,
+                onBackClick = { selectedExercise = null },
+                onSaveChanges = { sets, reps, isCompleted ->
+                    viewModel.updateExercise(selectedExercise!!.id, sets, reps, isCompleted)
+                }
+            )
+        } else {
+            // Show Daily Workout Screen
+            DailyWorkoutScreen(
+                viewModel = viewModel,
+                onExerciseClick = { exercise -> selectedExercise = exercise },
+                modifier = Modifier.padding(innerPadding)
+            )
+        }
 
         // Debug day selector dialog
         if (showDebugMenu && IS_DEBUG_MODE) {
@@ -115,7 +132,8 @@ fun MainScreen(
 @Composable
 fun DailyWorkoutScreen(
     viewModel: DailyWorkoutViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onExerciseClick: (WorkoutEntryWithExercise) -> Unit = {}
 ) {
 
     val todaysWorkout by viewModel.todaysWorkout.collectAsState()
@@ -179,7 +197,8 @@ fun DailyWorkoutScreen(
                 items(todaysWorkout) { workoutEntry ->
                     WorkoutExerciseItem(
                         workoutEntry = workoutEntry,
-                        onCompletionToggle = { viewModel.toggleExerciseCompletion(workoutEntry.id) }
+                        onCompletionToggle = { viewModel.toggleExerciseCompletion(workoutEntry.id) },
+                        onClick = onExerciseClick // Handle exercise click
                     )
                 }
             }
@@ -236,11 +255,12 @@ fun WorkoutProgressIndicator(
 }
 
 @Composable
-fun WorkoutExerciseItem(workoutEntry: WorkoutEntryWithExercise, onCompletionToggle: () -> Unit) {
+fun WorkoutExerciseItem(workoutEntry: WorkoutEntryWithExercise, onCompletionToggle: () -> Unit, onClick: (WorkoutEntryWithExercise) -> Unit = {}) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp)
+            .clickable { onClick(workoutEntry) }, // Pass the workout entry when clicked
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
@@ -289,8 +309,12 @@ fun WorkoutExerciseItem(workoutEntry: WorkoutEntryWithExercise, onCompletionTogg
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Completed",
+                    text = if (workoutEntry.isCompleted) "Completed" else "Start",
                     style = MaterialTheme.typography.bodyMedium,
+                    color = if (workoutEntry.isCompleted)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        Color(0xFF4CAF50), // Green color for "Start"
                     modifier = Modifier.weight(1f)
                 )
 
@@ -299,9 +323,9 @@ fun WorkoutExerciseItem(workoutEntry: WorkoutEntryWithExercise, onCompletionTogg
                     onCheckedChange = { onCompletionToggle() },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = MaterialTheme.colorScheme.primary,
-                        uncheckedThumbColor = MaterialTheme.colorScheme.onSurface,
+                        uncheckedThumbColor = Color(0xFF4CAF50), // Green thumb when not completed
                         checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
-                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                        uncheckedTrackColor = Color(0xFF4CAF50).copy(alpha = 0.3f) // Light green track
                     )
                 )
             }
