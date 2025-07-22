@@ -2,15 +2,18 @@ package com.example.offlinepplworkoutapp.data.repository
 
 import com.example.offlinepplworkoutapp.data.dao.WorkoutDayDao
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryDao
+import com.example.offlinepplworkoutapp.data.dao.SetEntryDao
 import com.example.offlinepplworkoutapp.data.entity.WorkoutDay
 import com.example.offlinepplworkoutapp.data.entity.WorkoutEntry
+import com.example.offlinepplworkoutapp.data.entity.SetEntry
 import kotlinx.coroutines.flow.Flow
 import java.text.SimpleDateFormat
 import java.util.*
 
 class WorkoutRepository(
     private val workoutDayDao: WorkoutDayDao,
-    private val workoutEntryDao: WorkoutEntryDao
+    private val workoutEntryDao: WorkoutEntryDao,
+    private val setEntryDao: SetEntryDao
 ) {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -159,6 +162,62 @@ class WorkoutRepository(
         entry?.let {
             val updatedEntry = it.copy(sets = sets, reps = reps, isCompleted = isCompleted)
             workoutEntryDao.update(updatedEntry)
+        }
+    }
+
+    suspend fun updateExerciseTime(entryId: Int, totalSecondsSpent: Int) {
+        val entry = workoutEntryDao.getWorkoutEntryById(entryId)
+        entry?.let {
+            val updatedEntry = it.copy(totalSecondsSpent = totalSecondsSpent)
+            workoutEntryDao.update(updatedEntry)
+        }
+    }
+
+    suspend fun startExerciseTimer(entryId: Int): Boolean {
+        // Mark exercise as started but not completed
+        val entry = workoutEntryDao.getWorkoutEntryById(entryId)
+        return entry != null
+    }
+
+    // New methods for set-based operations
+    suspend fun getSetsForWorkoutEntry(workoutEntryId: Int): Flow<List<com.example.offlinepplworkoutapp.data.entity.SetEntry>> {
+        return setEntryDao.getSetsForWorkoutEntry(workoutEntryId)
+    }
+
+    suspend fun getSetsForWorkoutEntrySync(workoutEntryId: Int): List<com.example.offlinepplworkoutapp.data.entity.SetEntry> {
+        return setEntryDao.getSetsForWorkoutEntrySync(workoutEntryId)
+    }
+
+    suspend fun getCompletedSetsCount(workoutEntryId: Int): Int {
+        return setEntryDao.getCompletedSetsCount(workoutEntryId)
+    }
+
+    suspend fun updateSetProgress(setId: Int, isCompleted: Boolean, elapsedTimeSeconds: Int) {
+        val completedAt = if (isCompleted) System.currentTimeMillis() else null
+        setEntryDao.updateSetProgress(setId, isCompleted, elapsedTimeSeconds, completedAt)
+    }
+
+    suspend fun createSetsForWorkoutEntry(workoutEntryId: Int, totalSets: Int) {
+        val sets = (1..totalSets).map { setNumber ->
+            com.example.offlinepplworkoutapp.data.entity.SetEntry(
+                workoutEntryId = workoutEntryId,
+                setNumber = setNumber
+            )
+        }
+        setEntryDao.insertAll(sets)
+    }
+
+    // Update exercise completion based on set completion
+    suspend fun updateExerciseCompletionFromSets(workoutEntryId: Int) {
+        val completedSets = setEntryDao.getCompletedSetsCount(workoutEntryId)
+        val totalSets = setEntryDao.getTotalSetsCount(workoutEntryId)
+
+        if (completedSets == totalSets && totalSets > 0) {
+            // Mark exercise as completed
+            val workoutEntry = workoutEntryDao.getWorkoutEntryById(workoutEntryId)
+            workoutEntry?.let {
+                workoutEntryDao.update(it.copy(isCompleted = true))
+            }
         }
     }
 }
