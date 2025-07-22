@@ -8,16 +8,18 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.offlinepplworkoutapp.data.dao.ExerciseDao
 import com.example.offlinepplworkoutapp.data.dao.WorkoutDayDao
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryDao
+import com.example.offlinepplworkoutapp.data.dao.SetEntryDao
 import com.example.offlinepplworkoutapp.data.entity.Exercise
 import com.example.offlinepplworkoutapp.data.entity.WorkoutDay
 import com.example.offlinepplworkoutapp.data.entity.WorkoutEntry
+import com.example.offlinepplworkoutapp.data.entity.SetEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Database(
-    entities = [Exercise::class, WorkoutDay::class, WorkoutEntry::class],
-    version = 3,
+    entities = [Exercise::class, WorkoutDay::class, WorkoutEntry::class, SetEntry::class],
+    version = 5,
     exportSchema = false
 )
 abstract class PPLWorkoutDatabase : RoomDatabase() {
@@ -25,6 +27,7 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
     abstract fun exerciseDao(): ExerciseDao
     abstract fun workoutDayDao(): WorkoutDayDao
     abstract fun workoutEntryDao(): WorkoutEntryDao
+    abstract fun setEntryDao(): SetEntryDao
 
     private class PPLWorkoutDatabaseCallback : RoomDatabase.Callback() {
 
