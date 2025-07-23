@@ -1,279 +1,286 @@
 package com.example.offlinepplworkoutapp.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise
+import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
+import com.example.offlinepplworkoutapp.ui.viewmodel.ExerciseDetailViewModel
+import com.example.offlinepplworkoutapp.ui.viewmodel.ExerciseDetailViewModelFactory
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExerciseDetailScreen(
     workoutEntry: WorkoutEntryWithExercise,
+    repository: WorkoutRepository,
     onBackClick: () -> Unit,
     onSaveChanges: (sets: Int, reps: Int, isCompleted: Boolean) -> Unit
 ) {
-    var sets by remember { mutableIntStateOf(workoutEntry.sets) }
-    var reps by remember { mutableIntStateOf(workoutEntry.reps) }
-    var isCompleted by remember { mutableStateOf(workoutEntry.isCompleted) }
-    var hasChanges by remember { mutableStateOf(false) }
+    val viewModel: ExerciseDetailViewModel = viewModel(
+        factory = ExerciseDetailViewModelFactory(workoutEntry, repository)
+    )
 
-    // Track if values have changed
-    LaunchedEffect(sets, reps, isCompleted) {
-        hasChanges = sets != workoutEntry.sets ||
-                    reps != workoutEntry.reps ||
-                    isCompleted != workoutEntry.isCompleted
-    }
+    val setTimers by viewModel.setTimers.collectAsState()
+    val currentRunningSet by viewModel.currentRunningSet.collectAsState()
+    val totalExerciseTime by viewModel.totalExerciseTime.collectAsState()
+    val completedSets by viewModel.completedSets.collectAsState()
+    val isExerciseCompleted by viewModel.isExerciseCompleted.collectAsState()
+
+    // Only update the completion status when explicitly going back,
+    // not immediately when the screen opens
+    val originalCompletionStatus = remember { workoutEntry.isCompleted }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = workoutEntry.exerciseName,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
+                    Column {
+                        Text(
+                            text = workoutEntry.exerciseName,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Sets: $completedSets/${workoutEntry.sets} • Total: ${formatTime(totalExerciseTime)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        },
-        floatingActionButton = {
-            if (hasChanges) {
-                FloatingActionButton(
-                    onClick = {
-                        onSaveChanges(sets, reps, isCompleted)
+                navigationIcon = {
+                    IconButton(onClick = {
+                        // Only update exercise completion status when explicitly navigating back,
+                        // and only if status has actually changed
+                        val shouldMarkCompleted = isExerciseCompleted && completedSets == workoutEntry.sets
+                        if (shouldMarkCompleted != originalCompletionStatus) {
+                            onSaveChanges(workoutEntry.sets, workoutEntry.reps, shouldMarkCompleted)
+                        }
                         onBackClick()
-                    },
-                    containerColor = MaterialTheme.colorScheme.primary
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Save Changes"
-                    )
+                    }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
                 }
-            }
+            )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Exercise Type Badge
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (workoutEntry.isCompound)
-                        MaterialTheme.colorScheme.primaryContainer
-                    else
-                        MaterialTheme.colorScheme.secondaryContainer
-                )
-            ) {
-                Text(
-                    text = if (workoutEntry.isCompound) "🏋️ COMPOUND EXERCISE" else "🎯 ISOLATION EXERCISE",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(16.dp),
-                    textAlign = TextAlign.Center,
-                    color = if (workoutEntry.isCompound)
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    else
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-
-            // Completion Status
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isCompleted)
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Exercise Status",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = if (isCompleted) "Completed" else "Start",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = if (isCompleted)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                Color(0xFF4CAF50) // Green color for "Start"
+            // Exercise completion status
+            item {
+                if (isExerciseCompleted) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
                         )
-
-                        IconButton(
-                            onClick = { isCompleted = !isCompleted }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = if (isCompleted)
-                                    Icons.Default.CheckCircle
-                                else
-                                    Icons.Default.PlayArrow,
-                                contentDescription = if (isCompleted) "Mark as Start" else "Mark as Completed",
-                                tint = if (isCompleted)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    Color(0xFF4CAF50) // Green color for start state
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Completed",
+                                tint = MaterialTheme.colorScheme.primary
                             )
-                        }
-                    }
-                }
-            }
-
-            // Sets and Reps Editor
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        text = "Exercise Parameters",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Sets Input
-                        Column(modifier = Modifier.weight(1f)) {
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Sets",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-
-                            OutlinedTextField(
-                                value = sets.toString(),
-                                onValueChange = { newValue ->
-                                    newValue.toIntOrNull()?.let { validSets ->
-                                        if (validSets in 1..10) {
-                                            sets = validSets
-                                        }
-                                    }
-                                },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
+                                text = "Exercise Completed! 🎉",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
-
-                        // Reps Input
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Reps",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-
-                            OutlinedTextField(
-                                value = reps.toString(),
-                                onValueChange = { newValue ->
-                                    newValue.toIntOrNull()?.let { validReps ->
-                                        if (validReps in 1..50) {
-                                            reps = validReps
-                                        }
-                                    }
-                                },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-
-                    // Preview Text
-                    Text(
-                        text = "$sets × $reps reps",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-
-            // Exercise Tips (if compound)
-            if (workoutEntry.isCompound) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "💡 Compound Exercise Tips",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
-
-                        Text(
-                            text = "• Focus on proper form over heavy weight\n• Allow longer rest periods (90-120s)\n• Engages multiple muscle groups\n• Great for building strength and mass",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer
-                        )
                     }
                 }
             }
 
-            if (hasChanges) {
-                Spacer(modifier = Modifier.height(80.dp)) // Space for FAB
+            // Set cards
+            itemsIndexed(setTimers) { index, setTimer ->
+                val activeSetIndex by viewModel.activeSetIndex.collectAsState()
+                SetTimerCard(
+                    setNumber = index + 1,
+                    totalSets = workoutEntry.sets,
+                    targetReps = workoutEntry.reps,
+                    setTimer = setTimer.elapsedTime,
+                    isCurrentSet = currentRunningSet == index,
+                    isCompleted = setTimer.isCompleted,
+                    isActive = index == activeSetIndex,  // Pass active set index
+                    onStartTimer = { viewModel.startSetTimer(index) },
+                    onStopTimer = { viewModel.stopSetTimer(index) },
+                    onCompleteSet = { viewModel.completeSet(index) }
+                )
             }
         }
     }
+}
+
+@Composable
+fun SetTimerCard(
+    setNumber: Int,
+    totalSets: Int,
+    targetReps: Int,
+    setTimer: Long,
+    isCurrentSet: Boolean,
+    isCompleted: Boolean = false,
+    isActive: Boolean = false,
+    onStartTimer: () -> Unit,
+    onStopTimer: () -> Unit,
+    onCompleteSet: () -> Unit
+) {
+    val backgroundColor = when {
+        isCompleted -> MaterialTheme.colorScheme.secondaryContainer
+        isCurrentSet -> MaterialTheme.colorScheme.primaryContainer
+        isActive -> MaterialTheme.colorScheme.surfaceVariant
+        else -> MaterialTheme.colorScheme.surface.copy(alpha = 0.7f) // Dimmed for inactive sets
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(if (isActive || isCurrentSet) 4.dp else 1.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Set Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Set $setNumber of $totalSets",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (!isActive && !isCompleted && !isCurrentSet)
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        else
+                            MaterialTheme.colorScheme.onSurface
+                    )
+
+                    // Show completion indicator
+                    if (isCompleted) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Completed",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                // Timer Text
+                Text(
+                    text = formatTime(setTimer),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Target reps display
+            Text(
+                text = "Target: $targetReps reps",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (!isActive && !isCompleted && !isCurrentSet)
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Single action button - changes between Start and Stop
+            if (isCompleted) {
+                // Show completed message for completed sets
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Set Completed",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            } else if (isActive || isCurrentSet) {
+                Button(
+                    onClick = if (isCurrentSet) onStopTimer else onStartTimer,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isCurrentSet)
+                            MaterialTheme.colorScheme.error
+                        else
+                            MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (isCurrentSet)
+                            Icons.Default.Close
+                        else
+                            Icons.Default.PlayArrow,
+                        contentDescription = if (isCurrentSet) "Stop" else "Start",
+                        tint = if (isCurrentSet)
+                            MaterialTheme.colorScheme.onError
+                        else
+                            MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isCurrentSet) "Stop Set" else "Start Set",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else {
+                // Disabled button for inactive sets
+                Button(
+                    onClick = { },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = false
+                ) {
+                    Text(
+                        text = "Waiting...",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
+        }
+    }
+}
+
+fun formatTime(milliseconds: Long): String {
+    val seconds = (milliseconds / 1000) % 60
+    val minutes = (milliseconds / (1000 * 60)) % 60
+    val hours = (milliseconds / (1000 * 60 * 60)) % 24
+
+    return String.format("%02d:%02d:%02d", hours, minutes, seconds)
 }
