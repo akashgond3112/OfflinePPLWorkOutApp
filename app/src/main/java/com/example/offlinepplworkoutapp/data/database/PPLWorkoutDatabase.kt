@@ -84,6 +84,20 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
             }
         }
 
+        // Reset database method - clears workout progress while preserving exercise definitions
+        suspend fun resetDatabase() {
+            INSTANCE?.let { database ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    // Clear all user workout data
+                    database.workoutDayDao().deleteAll()
+                    database.workoutEntryDao().deleteAll()
+                    database.setEntryDao().deleteAll()
+
+                    // Note: We're not deleting exercises since that would remove the exercise library
+                }.join() // Wait for deletion to complete
+            }
+        }
+
         private fun getPPLExercises(): List<Exercise> {
             return listOf(
                 // Push Day 1 (Monday) - Exercises 1-5
