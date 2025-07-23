@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,19 +20,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise
 import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
-import com.example.offlinepplworkoutapp.data.entity.Exercise
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
 import com.example.offlinepplworkoutapp.ui.screens.ExerciseDetailScreen
 import com.example.offlinepplworkoutapp.ui.theme.OfflinePPLWorkOutAppTheme
 import com.example.offlinepplworkoutapp.ui.viewmodel.DailyWorkoutViewModel
 import com.example.offlinepplworkoutapp.ui.viewmodel.DailyWorkoutViewModelFactory
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -49,7 +49,8 @@ class MainActivity : ComponentActivity() {
         database = PPLWorkoutDatabase.getDatabase(this)
         repository = WorkoutRepository(
             workoutDayDao = database.workoutDayDao(),
-            workoutEntryDao = database.workoutEntryDao()
+            workoutEntryDao = database.workoutEntryDao(),
+            setEntryDao = database.setEntryDao()
         )
 
         enableEdgeToEdge()
@@ -71,7 +72,58 @@ fun MainScreen(
 
     var showDebugMenu by remember { mutableStateOf(false) }
     var selectedExercise by remember { mutableStateOf<WorkoutEntryWithExercise?>(null) }
+    var showResetConfirmation by remember { mutableStateOf(false) }
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val coroutineScope = rememberCoroutineScope()
+
+    // Add reset confirmation dialog
+    if (showResetConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirmation = false },
+            title = {
+                Text(
+                    text = "⚠️ Reset Workout Progress",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            },
+            text = {
+                Text(
+                    text = "This will clear all your workout progress and history, but keep your exercise library intact.\n\nThis action cannot be undone. Are you sure you want to continue?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Use coroutineScope.launch to call the suspend function properly
+                        coroutineScope.launch {
+                            // Call the resetDatabase method
+                            PPLWorkoutDatabase.resetDatabase()
+
+                            // Refresh view model data
+                            viewModel.refreshData()
+
+                            // Close dialogs
+                            showResetConfirmation = false
+                            showDebugMenu = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Reset All Progress")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showResetConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -94,6 +146,7 @@ fun MainScreen(
             // Show Exercise Detail Screen
             ExerciseDetailScreen(
                 workoutEntry = selectedExercise!!,
+                repository = repository,
                 onBackClick = { selectedExercise = null },
                 onSaveChanges = { sets, reps, isCompleted ->
                     viewModel.updateExercise(selectedExercise!!.id, sets, reps, isCompleted)
@@ -123,6 +176,10 @@ fun MainScreen(
                 onResetToToday = {
                     viewModel.setDebugDate(null)
                     showDebugMenu = false
+                },
+                onResetDatabase = {
+                    // Show confirmation dialog before resetting the database
+                    showResetConfirmation = true
                 }
             )
         }
@@ -139,26 +196,68 @@ fun DailyWorkoutScreen(
     val todaysWorkout by viewModel.todaysWorkout.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val completionProgress by viewModel.completionProgress.collectAsState()
+    val timerSeconds by viewModel.timerSeconds.collectAsState()
+    val isTimerRunning by viewModel.isTimerRunning.collectAsState()
+
+    var showResetWarning by remember { mutableStateOf(false) }
+    var exerciseToReset by remember { mutableStateOf<Int?>(null) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Header with day and workout type
-        Text(
-            text = "${viewModel.getCurrentDayName()}'s Workout",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        // Header with day, workout type, and timer
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "${viewModel.getCurrentDayName()}'s Workout",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
 
-        Text(
-            text = viewModel.getWorkoutTypeName(),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+                Text(
+                    text = viewModel.getWorkoutTypeName(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+
+            // Timer Display in top-right corner
+            if (isTimerRunning) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier.padding(start = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Timer",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = viewModel.formatTime(timerSeconds),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
 
         // Progress indicator for non-rest days
         if (todaysWorkout.isNotEmpty()) {
@@ -195,14 +294,65 @@ fun DailyWorkoutScreen(
 
             LazyColumn {
                 items(todaysWorkout) { workoutEntry ->
-                    WorkoutExerciseItem(
+                    WorkoutExerciseItemWithSetProgress(
                         workoutEntry = workoutEntry,
-                        onCompletionToggle = { viewModel.toggleExerciseCompletion(workoutEntry.id) },
-                        onClick = onExerciseClick // Handle exercise click
+                        onClick = onExerciseClick
                     )
                 }
             }
         }
+    }
+
+    // Auto-save logic when all exercises are completed
+    if (completionProgress == 1.0f) {
+        viewModel.saveTotalTimeSpent(timerSeconds)
+    }
+
+    // Reset Protection Dialog
+    if (showResetWarning && exerciseToReset != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showResetWarning = false
+                exerciseToReset = null
+            },
+            title = {
+                Text(
+                    text = "⚠️ Reset Exercise",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "This will reset your entire workout progress for this exercise. It's better to go to the exercise detail to reset specific reps.\n\nAre you sure you want to completely reset this exercise?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        exerciseToReset?.let { exerciseId ->
+                            val exercise = todaysWorkout.find { it.id == exerciseId }
+                            exercise?.let { onExerciseClick(it) }
+                        }
+                        showResetWarning = false
+                        exerciseToReset = null
+                    }
+                ) {
+                    Text("Go to Details")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showResetWarning = false
+                        exerciseToReset = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -334,6 +484,214 @@ fun WorkoutExerciseItem(workoutEntry: WorkoutEntryWithExercise, onCompletionTogg
 }
 
 @Composable
+fun WorkoutExerciseItemWithTimer(workoutEntry: WorkoutEntryWithExercise, onCompletionToggle: () -> Unit, onClick: (WorkoutEntryWithExercise) -> Unit = {}) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable { onClick(workoutEntry) }, // Pass the workout entry when clicked
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = workoutEntry.exerciseName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = if (workoutEntry.isCompound) "Compound Exercise" else "Isolation Exercise",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (workoutEntry.isCompound)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.secondary
+                    )
+                }
+
+                // Sets and Reps display
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text(
+                        text = "${workoutEntry.sets} × ${workoutEntry.reps} reps",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            // Completion toggle switch
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (workoutEntry.isCompleted) "Completed" else "Start",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (workoutEntry.isCompleted)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        Color(0xFF4CAF50), // Green color for "Start"
+                    modifier = Modifier.weight(1f)
+                )
+
+                Switch(
+                    checked = workoutEntry.isCompleted,
+                    onCheckedChange = { onCompletionToggle() },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                        uncheckedThumbColor = Color(0xFF4CAF50), // Green thumb when not completed
+                        checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                        uncheckedTrackColor = Color(0xFF4CAF50).copy(alpha = 0.3f) // Light green track
+                    )
+                )
+            }
+
+            // Timer display for total time spent (if exercise has time recorded)
+            if (workoutEntry.totalSecondsSpent > 0) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Time Spent",
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Time spent: ${workoutEntry.totalSecondsSpent / 60}:${String.format("%02d", workoutEntry.totalSecondsSpent % 60)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WorkoutExerciseItemWithSetProgress(workoutEntry: WorkoutEntryWithExercise, onClick: (WorkoutEntryWithExercise) -> Unit = {}) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clickable { onClick(workoutEntry) },
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = workoutEntry.exerciseName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = if (workoutEntry.isCompound) "Compound Exercise" else "Isolation Exercise",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (workoutEntry.isCompound)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.secondary
+                    )
+                }
+
+                // Sets and Reps display
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text(
+                        text = "${workoutEntry.sets} × ${workoutEntry.reps} reps",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Set Progress Bar and Status
+            val completedSets = if (workoutEntry.isCompleted) workoutEntry.sets else 0 // TODO: Get actual completed sets from DB
+            val progress = if (workoutEntry.sets > 0) completedSets.toFloat() / workoutEntry.sets.toFloat() else 0f
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (workoutEntry.isCompleted) "✅ Completed" else "Set $completedSets/${workoutEntry.sets}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (workoutEntry.isCompleted)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = if (workoutEntry.isCompleted) FontWeight.Bold else FontWeight.Normal
+                    )
+
+                    if (!workoutEntry.isCompleted) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    }
+                }
+
+                // Total time spent display
+                if (workoutEntry.totalSecondsSpent > 0) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(start = 16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "Time Spent",
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "${workoutEntry.totalSecondsSpent / 60}:${String.format("%02d", workoutEntry.totalSecondsSpent % 60)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun RestDayScreen() {
     Box(
         modifier = Modifier.fillMaxSize()
@@ -402,7 +760,8 @@ fun RestDayScreen() {
 fun DebugDaySelector(
     onDaySelected: (Int) -> Unit,
     onDismiss: () -> Unit,
-    onResetToToday: () -> Unit
+    onResetToToday: () -> Unit,
+    onResetDatabase: () -> Unit = {}  // Added parameter for database reset
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
