@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
+import com.example.offlinepplworkoutapp.utils.WorkoutTimer
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +20,13 @@ class DailyWorkoutViewModel(
 ) : ViewModel() {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+    // Timer functionality
+    private val workoutTimer = WorkoutTimer()
+    private var timerJob: Job? = null
+
+    val timerSeconds = workoutTimer.elapsedSeconds
+    val isTimerRunning = workoutTimer.isTimerRunning
 
     private val _todaysWorkout = MutableStateFlow<List<WorkoutEntryWithExercise>>(emptyList())
     val todaysWorkout: StateFlow<List<WorkoutEntryWithExercise>> = _todaysWorkout.asStateFlow()
@@ -64,8 +74,14 @@ class DailyWorkoutViewModel(
     // Debug function to simulate different days
     fun setDebugDate(date: String?) {
         _debugDate.value = date
-        val dateToUse = date ?: dateFormat.format(Date())
-        loadWorkoutForDate(dateToUse)
+        if (date == null) {
+            // Reset to today - use the original loadTodaysWorkout function
+            _currentDate.value = dateFormat.format(Date())
+            loadTodaysWorkout()
+        } else {
+            // Load specific debug date
+            loadWorkoutForDate(date)
+        }
     }
 
     fun toggleExerciseCompletion(entryId: Int) {
@@ -132,6 +148,90 @@ class DailyWorkoutViewModel(
             Calendar.SUNDAY -> "Rest Day"
             else -> "Rest Day"
         }
+    }
+
+    // New timer-related functions
+    fun startExerciseTimer(exerciseId: Int) {
+        // Stop any existing timer first
+        stopCurrentTimer()
+
+        // Start new timer for this exercise
+        workoutTimer.startTimer(exerciseId)
+
+        // Start the timer update job
+        timerJob = viewModelScope.launch {
+            while (workoutTimer.isTimerRunning.value) {
+                workoutTimer.updateElapsedTime()
+                delay(1000) // Update every second
+            }
+        }
+    }
+
+    fun stopCurrentTimer() {
+        timerJob?.cancel()
+        val currentExerciseId = workoutTimer.getCurrentExerciseId()
+        val timeSpent = workoutTimer.stopTimer()
+
+        // Save time to database if there was an active timer
+        if (currentExerciseId != null && timeSpent > 0) {
+            viewModelScope.launch {
+                repository.updateExerciseTime(currentExerciseId, timeSpent)
+            }
+        }
+    }
+
+    fun handleExerciseToggle(exerciseId: Int, currentlyCompleted: Boolean): ToggleAction {
+        val currentTimerExercise = workoutTimer.getCurrentExerciseId()
+
+        return when {
+            // Starting an exercise (not completed -> completed)
+            !currentlyCompleted -> {
+                startExerciseTimer(exerciseId)
+                ToggleAction.START_TIMER
+            }
+            // Trying to reset a completed exercise -> show warning
+            currentlyCompleted -> {
+                ToggleAction.SHOW_RESET_WARNING
+            }
+            else -> ToggleAction.NORMAL_TOGGLE
+        }
+    }
+
+    fun resetExerciseToStart(exerciseId: Int) {
+        viewModelScope.launch {
+            // Reset exercise to not completed and clear time
+            repository.updateExerciseDetails(exerciseId, sets = 0, reps = 0, isCompleted = false)
+            repository.updateExerciseTime(exerciseId, 0)
+
+            // Stop any running timer
+            if (workoutTimer.getCurrentExerciseId() == exerciseId) {
+                stopCurrentTimer()
+            }
+        }
+    }
+
+    fun formatTime(seconds: Int): String = workoutTimer.formatTime(seconds)
+
+    fun saveTotalTimeSpent(totalSeconds: Int) {
+        viewModelScope.launch {
+            // Save the total workout time when all exercises are completed
+            val currentExerciseId = workoutTimer.getCurrentExerciseId()
+            if (currentExerciseId != null) {
+                repository.updateExerciseTime(currentExerciseId, totalSeconds)
+                stopCurrentTimer()
+            }
+        }
+    }
+
+    // Function to refresh data after database reset
+    fun refreshData() {
+        loadTodaysWorkout()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopCurrentTimer()
+        workoutTimer.reset()
     }
 }
 
