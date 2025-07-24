@@ -16,6 +16,7 @@ import com.example.offlinepplworkoutapp.data.entity.SetEntry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Database(
     entities = [Exercise::class, WorkoutDay::class, WorkoutEntry::class, SetEntry::class],
@@ -87,15 +88,86 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
         // Reset database method - clears workout progress while preserving exercise definitions
         suspend fun resetDatabase() {
             INSTANCE?.let { database ->
-                CoroutineScope(Dispatchers.IO).launch {
-                    // Clear all user workout data
-                    database.workoutDayDao().deleteAll()
-                    database.workoutEntryDao().deleteAll()
-                    database.setEntryDao().deleteAll()
+                // Clear all user workout data directly (we're already in a suspend function)
+                database.workoutDayDao().deleteAll()
+                database.workoutEntryDao().deleteAll()
+                database.setEntryDao().deleteAll()
 
-                    // Note: We're not deleting exercises since that would remove the exercise library
-                }.join() // Wait for deletion to complete
+                // Force close and invalidate all active connections to clear cache
+                database.clearAllTables()
+                database.invalidationTracker.refreshVersionsAsync()
+
+                // Note: We're not deleting exercises since that would remove the exercise library
             }
+        }
+
+        // Method to completely reset the database instance (more aggressive)
+        suspend fun forceResetDatabase(context: Context) {
+            println("🔧 RESET: Starting forceResetDatabase...")
+
+            INSTANCE?.let { database ->
+                println("🔧 RESET: Clearing all data from existing database...")
+
+                try {
+                    // Run database operations on IO dispatcher to avoid main thread issues
+                    withContext(Dispatchers.IO) {
+                        // Clear all data and log the results
+                        val workoutDaysDeleted = database.workoutDayDao().deleteAll()
+                        val workoutEntriesDeleted = database.workoutEntryDao().deleteAll()
+                        val setEntriesDeleted = database.setEntryDao().deleteAll()
+
+                        println("🔧 RESET: Deleted $workoutDaysDeleted workout days")
+                        println("🔧 RESET: Deleted $workoutEntriesDeleted workout entries")
+                        println("🔧 RESET: Deleted $setEntriesDeleted set entries")
+
+                        // Use the public API for invalidation instead of restricted refreshVersionsSync
+                        database.invalidationTracker.refreshVersionsAsync()
+                        println("🔧 RESET: Invalidated all cached queries (async)")
+
+                        // Clear all tables to reset Room's internal state
+                        database.clearAllTables()
+                        println("🔧 RESET: Cleared all Room tables")
+                    }
+
+                } catch (e: Exception) {
+                    println("🔧 RESET ERROR: ${e.message}")
+
+                    // If we get errors, fall back to recreating the database
+                    try {
+                        database.close()
+                        println("🔧 RESET: Closed database due to errors")
+                    } catch (closeError: Exception) {
+                        println("🔧 RESET: Error closing database: ${closeError.message}")
+                    }
+
+                    // Clear the singleton instance to force recreation
+                    INSTANCE = null
+                    println("🔧 RESET: Database instance cleared for recreation")
+                }
+            }
+
+            if (INSTANCE == null) {
+                // Force garbage collection to clear any remaining references
+                System.gc()
+                println("🔧 RESET: Garbage collection forced")
+
+                // Recreate the database instance
+                getDatabase(context)
+                println("🔧 RESET: Database recreated")
+            }
+
+            println("🔧 RESET: Reset complete")
+        }
+
+        // Method to verify database is empty (for debugging)
+        suspend fun verifyDatabaseEmpty(): Triple<Int, Int, Int> {
+            return INSTANCE?.let { database ->
+                val workoutDays = database.workoutDayDao().getWorkoutDayCount()
+                val workoutEntries = database.workoutEntryDao().getWorkoutEntryCount()
+                val setEntries = database.setEntryDao().getSetEntryCount()
+                println("🔍 VERIFY: WorkoutDays: $workoutDays, WorkoutEntries: $workoutEntries, SetEntries: $setEntries")
+                Triple(workoutDays, workoutEntries, setEntries)
+            } ?: Triple(0, 0, 0)
         }
 
         private fun getPPLExercises(): List<Exercise> {
