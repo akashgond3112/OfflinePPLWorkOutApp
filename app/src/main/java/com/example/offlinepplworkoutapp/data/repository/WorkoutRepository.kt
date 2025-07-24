@@ -158,10 +158,15 @@ class WorkoutRepository(
     }
 
     suspend fun updateExerciseDetails(entryId: Int, sets: Int, reps: Int, isCompleted: Boolean) {
+        println("🏋️ REPO: Updating exercise details - entryId: $entryId, sets: $sets, reps: $reps, isCompleted: $isCompleted")
         val entry = workoutEntryDao.getWorkoutEntryById(entryId)
         entry?.let {
+            println("🏋️ REPO: Found entry - id: ${it.id}, exerciseId: ${it.exerciseId}, current isCompleted: ${it.isCompleted}")
             val updatedEntry = it.copy(sets = sets, reps = reps, isCompleted = isCompleted)
             workoutEntryDao.update(updatedEntry)
+            println("🏋️ REPO: Updated entry - id: ${updatedEntry.id}, new isCompleted: ${updatedEntry.isCompleted}")
+        } ?: run {
+            println("🏋️ REPO ERROR: No entry found for entryId: $entryId")
         }
     }
 
@@ -219,6 +224,33 @@ class WorkoutRepository(
                 workoutEntryDao.update(it.copy(isCompleted = true))
             }
         }
+    }
+
+    // New method that doesn't auto-create workout data
+    suspend fun getTodaysWorkoutWithoutCreating(): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
+        val today = dateFormat.format(Date())
+        val workoutDay = workoutDayDao.getWorkoutDayByDate(today)
+        return if (workoutDay != null) {
+            workoutEntryDao.getWorkoutEntriesForDay(workoutDay.id)
+        } else {
+            kotlinx.coroutines.flow.flowOf(emptyList()) // Return empty list if no workout day exists
+        }
+    }
+
+    suspend fun getWorkoutForDateWithoutCreating(date: String): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
+        val workoutDay = workoutDayDao.getWorkoutDayByDate(date)
+        return if (workoutDay != null) {
+            workoutEntryDao.getWorkoutEntriesForDay(workoutDay.id)
+        } else {
+            kotlinx.coroutines.flow.flowOf(emptyList()) // Return empty list if no workout day exists
+        }
+    }
+
+    // Method to manually create today's workout (called when user wants to start workout)
+    suspend fun createTodaysWorkout(): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
+        val today = dateFormat.format(Date())
+        val workoutDay = getOrCreateWorkoutDay(today)
+        return workoutEntryDao.getWorkoutEntriesForDay(workoutDay.id)
     }
 }
 
