@@ -36,7 +36,10 @@ interface WorkoutEntryDao {
     suspend fun deleteByDayId(dayId: Int)
 
     @Query("DELETE FROM workout_entries")
-    suspend fun deleteAll()
+    suspend fun deleteAll(): Int
+
+    @Query("SELECT COUNT(*) FROM workout_entries")
+    suspend fun getWorkoutEntryCount(): Int
 }
 
 data class WorkoutEntryWithExercise(
