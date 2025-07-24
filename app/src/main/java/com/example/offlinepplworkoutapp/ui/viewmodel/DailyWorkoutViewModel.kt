@@ -51,7 +51,7 @@ class DailyWorkoutViewModel(
     private fun loadTodaysWorkout() {
         viewModelScope.launch {
             _isLoading.value = true
-            repository.getTodaysWorkout().collect { exercises ->
+            repository.getTodaysWorkoutWithoutCreating().collect { exercises ->
                 _todaysWorkout.value = exercises
                 _isLoading.value = false
                 updateCompletionProgress(exercises)
@@ -63,7 +63,19 @@ class DailyWorkoutViewModel(
         viewModelScope.launch {
             _isLoading.value = true
             _currentDate.value = date
-            repository.getWorkoutForDate(date).collect { exercises ->
+            repository.getWorkoutForDateWithoutCreating(date).collect { exercises ->
+                _todaysWorkout.value = exercises
+                _isLoading.value = false
+                updateCompletionProgress(exercises)
+            }
+        }
+    }
+
+    // New method to create today's workout when user wants to start
+    fun createTodaysWorkout() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            repository.createTodaysWorkout().collect { exercises ->
                 _todaysWorkout.value = exercises
                 _isLoading.value = false
                 updateCompletionProgress(exercises)
@@ -97,8 +109,10 @@ class DailyWorkoutViewModel(
     }
 
     fun updateExercise(entryId: Int, sets: Int, reps: Int, isCompleted: Boolean) {
+        println("🎯 VIEWMODEL: updateExercise called - entryId: $entryId, sets: $sets, reps: $reps, isCompleted: $isCompleted")
         viewModelScope.launch {
             repository.updateExerciseDetails(entryId, sets, reps, isCompleted)
+            println("🎯 VIEWMODEL: updateExercise completed for entryId: $entryId")
         }
     }
 
@@ -225,7 +239,45 @@ class DailyWorkoutViewModel(
 
     // Function to refresh data after database reset
     fun refreshData() {
+        // Reset all state variables to initial state
+        _isLoading.value = true
+        _todaysWorkout.value = emptyList()
+        _completionProgress.value = 0f
+        _debugDate.value = null
+        _currentDate.value = dateFormat.format(Date())
+
+        // Stop any running timers
+        stopCurrentTimer()
+        workoutTimer.reset()
+
+        // Reload today's workout from scratch
         loadTodaysWorkout()
+    }
+
+    // Force complete refresh - more aggressive reset for cache clearing
+    fun forceCompleteRefresh() {
+        // Cancel any existing data collection jobs
+        viewModelScope.launch {
+            // Reset all state variables to initial state
+            _isLoading.value = true
+            _todaysWorkout.value = emptyList()
+            _completionProgress.value = 0f
+            _debugDate.value = null
+            _currentDate.value = dateFormat.format(Date())
+
+            // Stop any running timers
+            stopCurrentTimer()
+            workoutTimer.reset()
+
+            // Force garbage collection to clear any cached references
+            System.gc()
+
+            // Wait a moment for cleanup
+            kotlinx.coroutines.delay(100)
+
+            // Reload today's workout from scratch
+            loadTodaysWorkout()
+        }
     }
 
     override fun onCleared() {
