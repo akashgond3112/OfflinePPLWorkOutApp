@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise
 import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
@@ -31,7 +32,6 @@ import com.example.offlinepplworkoutapp.ui.screens.ExerciseDetailScreen
 import com.example.offlinepplworkoutapp.ui.theme.OfflinePPLWorkOutAppTheme
 import com.example.offlinepplworkoutapp.ui.viewmodel.DailyWorkoutViewModel
 import com.example.offlinepplworkoutapp.ui.viewmodel.DailyWorkoutViewModelFactory
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(
     repository: WorkoutRepository
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val viewModel: DailyWorkoutViewModel = viewModel(
         factory = DailyWorkoutViewModelFactory(repository)
     )
@@ -99,15 +100,31 @@ fun MainScreen(
                     onClick = {
                         // Use coroutineScope.launch to call the suspend function properly
                         coroutineScope.launch {
-                            // Call the resetDatabase method
-                            PPLWorkoutDatabase.resetDatabase()
+                            println("🚀 UI: Starting reset process...")
 
-                            // Refresh view model data
-                            viewModel.refreshData()
+                            // Verify what's in database before reset
+                            val beforeReset = PPLWorkoutDatabase.verifyDatabaseEmpty()
+                            println("📊 BEFORE RESET: ${beforeReset.first} days, ${beforeReset.second} entries, ${beforeReset.third} sets")
+
+                            // Use the more aggressive reset that forces database recreation
+                            PPLWorkoutDatabase.forceResetDatabase(context)
+
+                            // Wait a moment for database operations to complete
+                            kotlinx.coroutines.delay(500)
+
+                            // Verify database is actually empty after reset
+                            val afterReset = PPLWorkoutDatabase.verifyDatabaseEmpty()
+                            println("📊 AFTER RESET: ${afterReset.first} days, ${afterReset.second} entries, ${afterReset.third} sets")
+
+                            // Force complete refresh of the ViewModel data
+                            println("🔄 UI: Forcing ViewModel refresh...")
+                            viewModel.forceCompleteRefresh()
 
                             // Close dialogs
                             showResetConfirmation = false
                             showDebugMenu = false
+
+                            println("✅ UI: Reset process complete!")
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -283,8 +300,19 @@ fun DailyWorkoutScreen(
                 }
             }
         } else if (todaysWorkout.isEmpty()) {
-            // Rest Day with Background Image
-            RestDayScreen()
+            // Check if it's a rest day or if workout needs to be created
+            if (viewModel.getWorkoutTypeName() == "Rest Day") {
+                // Rest Day with Background Image
+                RestDayScreen()
+            } else {
+                // Show "Start Workout" screen after reset or for new day
+                StartWorkoutScreen(
+                    workoutType = viewModel.getWorkoutTypeName(),
+                    onStartWorkout = {
+                        viewModel.createTodaysWorkout()
+                    }
+                )
+            }
         } else {
             Text(
                 text = "Exercises: ${todaysWorkout.size}",
@@ -763,6 +791,9 @@ fun DebugDaySelector(
     onResetToToday: () -> Unit,
     onResetDatabase: () -> Unit = {}  // Added parameter for database reset
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -812,6 +843,58 @@ fun DebugDaySelector(
                         )
                     }
                 }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Debug Actions:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
+                item {
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                println("🔍 DEBUG: Checking current database state...")
+                                val currentState = PPLWorkoutDatabase.verifyDatabaseEmpty()
+                                println("📊 CURRENT STATE: ${currentState.first} days, ${currentState.second} entries, ${currentState.third} sets")
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiary
+                        )
+                    ) {
+                        Text("🔍 Check DB State")
+                    }
+                }
+
+                item {
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                println("🧨 DEBUG: Force reset database...")
+                                PPLWorkoutDatabase.forceResetDatabase(context)
+                                kotlinx.coroutines.delay(200)
+                                val afterState = PPLWorkoutDatabase.verifyDatabaseEmpty()
+                                println("📊 AFTER FORCE RESET: ${afterState.first} days, ${afterState.second} entries, ${afterState.third} sets")
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("🧨 Force Reset DB")
+                    }
+                }
             }
         },
         confirmButton = {
@@ -825,6 +908,81 @@ fun DebugDaySelector(
             }
         }
     )
+}
+
+@Composable
+fun StartWorkoutScreen(
+    workoutType: String,
+    onStartWorkout: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "💪",
+                    style = MaterialTheme.typography.displayLarge,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                Text(
+                    text = "Ready to Start?",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Text(
+                    text = workoutType,
+                    style = MaterialTheme.typography.titleMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 24.dp)
+                )
+
+                Text(
+                    text = "Tap the button below to create today's workout and start training!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 32.dp)
+                )
+
+                Button(
+                    onClick = onStartWorkout,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = "Start Workout",
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(
+                        text = "Start Today's Workout",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Preview(showBackground = true)
