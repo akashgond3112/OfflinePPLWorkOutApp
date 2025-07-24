@@ -29,7 +29,10 @@ interface SetEntryDao {
     suspend fun deleteByWorkoutEntryId(workoutEntryId: Int)
 
     @Query("DELETE FROM set_entries")
-    suspend fun deleteAll()
+    suspend fun deleteAll(): Int
+
+    @Query("SELECT COUNT(*) FROM set_entries")
+    suspend fun getSetEntryCount(): Int
 
     @Query("SELECT COUNT(*) FROM set_entries WHERE workout_entry_id = :workoutEntryId AND isCompleted = 1")
     suspend fun getCompletedSetsCount(workoutEntryId: Int): Int
