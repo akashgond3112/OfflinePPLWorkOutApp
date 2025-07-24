@@ -23,5 +23,8 @@ interface WorkoutDayDao {
     suspend fun deleteOlderThan(cutoffDate: String)
 
     @Query("DELETE FROM workout_days")
-    suspend fun deleteAll()
+    suspend fun deleteAll(): Int
+
+    @Query("SELECT COUNT(*) FROM workout_days")
+    suspend fun getWorkoutDayCount(): Int
 }
