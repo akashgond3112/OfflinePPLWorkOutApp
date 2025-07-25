@@ -12,32 +12,72 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = DarkTeal,
+    onPrimary = TextOnPrimary,
+    primaryContainer = DarkOrange,
+    onPrimaryContainer = TextOnPrimary,
+    secondary = DarkOrange,
+    onSecondary = TextOnPrimary,
+    secondaryContainer = DarkSurface,
+    onSecondaryContainer = DarkTeal,
+    tertiary = TealSecondary,
+    onTertiary = TextOnPrimary,
+    tertiaryContainer = DarkSurface,
+    onTertiaryContainer = DarkTeal,
+    error = PrimaryCoral,
+    onError = TextOnPrimary,
+    errorContainer = DarkOrange,
+    onErrorContainer = TextOnPrimary,
+    background = DarkBackground,
+    onBackground = TextOnPrimary,
+    surface = DarkSurface,
+    onSurface = TextOnPrimary,
+    surfaceVariant = DarkSurface,
+    onSurfaceVariant = DarkTeal,
+    outline = DarkTeal,
+    outlineVariant = DarkOrange,
+    scrim = Black,
+    inverseSurface = CardBackground,
+    inverseOnSurface = TextPrimary,
+    inversePrimary = PrimaryCoral
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = PrimaryCoral,
+    onPrimary = TextOnPrimary,
+    primaryContainer = AmberAccent,
+    onPrimaryContainer = TextPrimary,
+    secondary = TealSecondary,
+    onSecondary = TextOnPrimary,
+    secondaryContainer = CardBackgroundSubtle,
+    onSecondaryContainer = TextPrimary,
+    tertiary = BluePrimary,
+    onTertiary = TextOnPrimary,
+    tertiaryContainer = BackgroundGradient,
+    onTertiaryContainer = TextPrimary,
+    error = PrimaryCoral,
+    onError = TextOnPrimary,
+    errorContainer = CardBackgroundSubtle,
+    onErrorContainer = TextPrimary,
+    background = BackgroundLight,
+    onBackground = TextPrimary,
+    surface = CardBackground,
+    onSurface = TextPrimary,
+    surfaceVariant = CardBackgroundSubtle,
+    onSurfaceVariant = TextSecondary,
+    outline = BorderLight,
+    outlineVariant = DividerColor,
+    scrim = ShadowColor,
+    inverseSurface = DarkSurface,
+    inverseOnSurface = TextOnPrimary,
+    inversePrimary = TealSecondary
 )
 
 @Composable
 fun OfflinePPLWorkOutAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false, // Disabled to use our custom colors
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
