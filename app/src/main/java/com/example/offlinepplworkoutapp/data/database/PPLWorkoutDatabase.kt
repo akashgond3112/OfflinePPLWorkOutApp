@@ -170,6 +170,25 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
             } ?: Triple(0, 0, 0)
         }
 
+        // Method to force populate exercises when they're missing
+        suspend fun forcePopulateExercises() {
+            INSTANCE?.let { database ->
+                println("🏋️ DATABASE: Force populating exercises...")
+                try {
+                    val exerciseDao = database.exerciseDao()
+                    val exercises = getPPLExercises()
+
+                    // Clear any existing exercises and insert fresh ones
+                    exerciseDao.deleteAll()
+                    exerciseDao.insertAll(exercises)
+
+                    println("🏋️ DATABASE: Successfully inserted ${exercises.size} exercises")
+                } catch (e: Exception) {
+                    println("🏋️ DATABASE ERROR: Failed to populate exercises - ${e.message}")
+                }
+            }
+        }
+
         private fun getPPLExercises(): List<Exercise> {
             return listOf(
                 // Push Day 1 (Monday) - Exercises 1-5
