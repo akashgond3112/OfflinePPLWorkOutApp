@@ -53,16 +53,32 @@ class ExerciseDetailViewModel(
 
     private fun loadSetsFromDatabase() {
         viewModelScope.launch {
+            println("🔍 DETAIL VM: Loading sets for workout entry ID: ${workoutEntry.id}")
+            println("🔍 DETAIL VM: Exercise: '${workoutEntry.exerciseName}' (Exercise ID: ${workoutEntry.exerciseId})")
+
             // First, ensure sets exist in database
             val existingSets = repository.getSetsForWorkoutEntrySync(workoutEntry.id)
+            println("🔍 DETAIL VM: Found ${existingSets.size} existing sets in database")
 
             if (existingSets.isEmpty()) {
+                println("🔍 DETAIL VM: No sets found, creating ${workoutEntry.sets} sets")
                 // Create sets in database if they don't exist
                 repository.createSetsForWorkoutEntry(workoutEntry.id, workoutEntry.sets)
+                println("🔍 DETAIL VM: Sets created, reloading...")
+            } else {
+                println("🔍 DETAIL VM: Sets already exist:")
+                existingSets.forEach { set ->
+                    println("🔍 DETAIL VM: Set ID=${set.id}, SetNumber=${set.setNumber}, WorkoutEntryId=${set.workoutEntryId}, completed=${set.isCompleted}, time=${set.elapsedTimeSeconds}s")
+                }
             }
 
             // Now load sets from database and observe changes
             repository.getSetsForWorkoutEntry(workoutEntry.id).collect { dbSets ->
+                println("🔍 DETAIL VM: Received ${dbSets.size} sets from Flow for WorkoutEntry ID: ${workoutEntry.id}")
+                dbSets.forEach { set ->
+                    println("🔍 DETAIL VM: Flow Set ID=${set.id}, SetNumber=${set.setNumber}, WorkoutEntryId=${set.workoutEntryId}, completed=${set.isCompleted}, time=${set.elapsedTimeSeconds}s")
+                }
+
                 val setTimers = dbSets.map { setEntry ->
                     SetTimer(
                         setNumber = setEntry.setNumber,
@@ -72,10 +88,20 @@ class ExerciseDetailViewModel(
                         startTime = 0L
                     )
                 }
+
+                println("🔍 DETAIL VM: Created ${setTimers.size} SetTimer objects for '${workoutEntry.exerciseName}'")
                 _setTimers.value = setTimers
                 _completedSets.value = dbSets.count { it.isCompleted }
                 _isExerciseCompleted.value = dbSets.all { it.isCompleted } && dbSets.isNotEmpty()
+
+                // 🔧 FIX: Set the active set index to the first incomplete set
+                val firstIncompleteSetIndex = setTimers.indexOfFirst { !it.isCompleted }
+                _activeSetIndex.value = if (firstIncompleteSetIndex != -1) firstIncompleteSetIndex else 0
+                println("🔍 DETAIL VM: Set active set index to: ${_activeSetIndex.value}")
+
                 updateTotalExerciseTime()
+
+                println("🔍 DETAIL VM: State updated for '${workoutEntry.exerciseName}' - completedSets: ${_completedSets.value}, isCompleted: ${_isExerciseCompleted.value}")
             }
         }
     }
@@ -145,10 +171,11 @@ class ExerciseDetailViewModel(
                     if (completedCount == workoutEntry.sets) {
                         _isExerciseCompleted.value = true
                     } else {
-                        // Advance to next set
-                        val nextSetIndex = setIndex + 1
-                        if (nextSetIndex < _setTimers.value.size && !_setTimers.value[nextSetIndex].isCompleted) {
-                            _activeSetIndex.value = nextSetIndex
+                        // Advance to next set - find the first incomplete set
+                        val nextIncompleteSetIndex = _setTimers.value.indexOfFirst { !it.isCompleted }
+                        if (nextIncompleteSetIndex != -1) {
+                            _activeSetIndex.value = nextIncompleteSetIndex
+                            println("🔍 DETAIL VM: Advanced to next set index: $nextIncompleteSetIndex")
                         }
                     }
                 }
