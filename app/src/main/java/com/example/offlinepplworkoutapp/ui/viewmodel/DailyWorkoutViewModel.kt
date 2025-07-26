@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
+import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
 import com.example.offlinepplworkoutapp.utils.WorkoutTimer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -12,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -73,12 +76,48 @@ class DailyWorkoutViewModel(
 
     // New method to create today's workout when user wants to start
     fun createTodaysWorkout() {
+        println("🎯 VIEWMODEL: createTodaysWorkout() called")
         viewModelScope.launch {
             _isLoading.value = true
-            repository.createTodaysWorkout().collect { exercises ->
-                _todaysWorkout.value = exercises
-                _isLoading.value = false
-                updateCompletionProgress(exercises)
+            println("🎯 VIEWMODEL: Starting workout creation process...")
+
+            try {
+                repository.createTodaysWorkout().collect { exercises ->
+                    println("🎯 VIEWMODEL: Received ${exercises.size} exercises from repository")
+                    _todaysWorkout.value = exercises
+                    _isLoading.value = false
+                    updateCompletionProgress(exercises)
+                    println("🎯 VIEWMODEL: Workout creation completed successfully")
+                }
+            } catch (e: Exception) {
+                println("🎯 VIEWMODEL ERROR: Failed to create workout - ${e.message}")
+
+                // If foreign key constraint failed, try to populate exercises and retry
+                if (e.message?.contains("FOREIGN KEY constraint failed") == true) {
+                    println("🎯 VIEWMODEL: Foreign key error detected, trying to populate exercises...")
+                    try {
+                        // Use the database to populate exercises
+                        val context = kotlinx.coroutines.Dispatchers.Main.immediate
+                        kotlinx.coroutines.withContext(context) {
+                            // Force populate exercises through the database
+                            PPLWorkoutDatabase.forcePopulateExercises()
+
+                            // Retry workout creation after populating exercises
+                            repository.createTodaysWorkout().collect { exercises ->
+                                println("🎯 VIEWMODEL: RETRY - Received ${exercises.size} exercises from repository")
+                                _todaysWorkout.value = exercises
+                                _isLoading.value = false
+                                updateCompletionProgress(exercises)
+                                println("🎯 VIEWMODEL: RETRY - Workout creation completed successfully")
+                            }
+                        }
+                    } catch (retryException: Exception) {
+                        println("🎯 VIEWMODEL ERROR: Retry also failed - ${retryException.message}")
+                        _isLoading.value = false
+                    }
+                } else {
+                    _isLoading.value = false
+                }
             }
         }
     }
@@ -169,20 +208,11 @@ class DailyWorkoutViewModel(
         // Stop any existing timer first
         stopCurrentTimer()
 
-        // Start new timer for this exercise
+        // Start new timer for this exercise - timer will auto-update every second
         workoutTimer.startTimer(exerciseId)
-
-        // Start the timer update job
-        timerJob = viewModelScope.launch {
-            while (workoutTimer.isTimerRunning.value) {
-                workoutTimer.updateElapsedTime()
-                delay(1000) // Update every second
-            }
-        }
     }
 
     fun stopCurrentTimer() {
-        timerJob?.cancel()
         val currentExerciseId = workoutTimer.getCurrentExerciseId()
         val timeSpent = workoutTimer.stopTimer()
 
@@ -283,7 +313,7 @@ class DailyWorkoutViewModel(
     override fun onCleared() {
         super.onCleared()
         stopCurrentTimer()
-        workoutTimer.reset()
+        workoutTimer.onCleared() // Properly clean up timer coroutines
     }
 }
 
