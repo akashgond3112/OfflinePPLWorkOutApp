@@ -17,6 +17,16 @@ interface WorkoutEntryDao {
     """)
     fun getWorkoutEntriesForDay(dayId: Int): Flow<List<WorkoutEntryWithExercise>>
 
+    @Query("""
+        SELECT we.id, we.day_id as dayId, we.exercise_id as exerciseId, we.sets, we.reps, we.isCompleted, we.totalSecondsSpent,
+               e.name as exerciseName, e.isCompound 
+        FROM workout_entries we
+        INNER JOIN exercises e ON we.exercise_id = e.id
+        WHERE we.day_id = :dayId
+        ORDER BY we.id
+    """)
+    suspend fun getWorkoutEntriesForDaySync(dayId: Int): List<WorkoutEntryWithExercise>
+
     @Query("SELECT * FROM workout_entries WHERE id = :id")
     suspend fun getWorkoutEntryById(id: Int): WorkoutEntry?
 
@@ -37,6 +47,9 @@ interface WorkoutEntryDao {
 
     @Query("DELETE FROM workout_entries")
     suspend fun deleteAll(): Int
+
+    @Query("SELECT COUNT(*) FROM workout_entries WHERE day_id = :dayId")
+    suspend fun getWorkoutEntryCountForDay(dayId: Int): Int
 
     @Query("SELECT COUNT(*) FROM workout_entries")
     suspend fun getWorkoutEntryCount(): Int
