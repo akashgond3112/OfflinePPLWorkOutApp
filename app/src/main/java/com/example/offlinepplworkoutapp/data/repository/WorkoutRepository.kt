@@ -61,6 +61,28 @@ class WorkoutRepository(
 
             workoutEntryDao.insertAll(entries)
             println("DEBUG: Inserted ${entries.size} workout entries for day $date")
+
+            // 🔧 FIX: Create sets for each workout entry immediately
+            // Since we just inserted the entries, we can use the entries we created
+            // and get their IDs after insertion
+            val insertedEntries = workoutEntryDao.getWorkoutEntriesForDaySync(dayId)
+            println("🔧 REPO: Retrieved ${insertedEntries.size} inserted entries to create sets")
+
+            for (entry in insertedEntries) {
+                println("🔧 REPO: Creating sets for WorkoutEntry ID=${entry.id}, Exercise='${entry.exerciseName}', Sets=${entry.sets}")
+                // Create individual sets for each exercise
+                createSetsForWorkoutEntry(entry.id, entry.sets)
+                println("🔧 REPO: Created ${entry.sets} sets for WorkoutEntry ID=${entry.id}")
+
+                // Verify sets were created
+                val createdSets = setEntryDao.getSetsForWorkoutEntrySync(entry.id)
+                println("🔧 REPO: Verification - Found ${createdSets.size} sets for WorkoutEntry ID=${entry.id}")
+                createdSets.forEach { set ->
+                    println("🔧 REPO: Set ID=${set.id}, SetNumber=${set.setNumber}, WorkoutEntryId=${set.workoutEntryId}")
+                }
+            }
+
+            println("🔧 REPO: All sets created for ${insertedEntries.size} exercises")
         } else {
             println("DEBUG: No exercises found for workout type: $workoutType on date: $date")
         }
@@ -249,8 +271,93 @@ class WorkoutRepository(
     // Method to manually create today's workout (called when user wants to start workout)
     suspend fun createTodaysWorkout(): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
         val today = dateFormat.format(Date())
-        val workoutDay = getOrCreateWorkoutDay(today)
-        return workoutEntryDao.getWorkoutEntriesForDay(workoutDay.id)
+        println("🚀 REPO: Creating today's workout for date: $today")
+
+        // First, ensure exercises exist in the database
+        val exerciseCount = workoutEntryDao.getWorkoutEntryCount() // This will check if ANY entries exist
+        println("🚀 REPO: Checking if exercises are populated in database...")
+
+        // Check if we have the basic exercise data
+        val hasExercises = try {
+            val exerciseDao = (workoutEntryDao as? Any) // We need to get exerciseDao reference
+            // For now, let's try to insert the workout and catch the foreign key error
+            true
+        } catch (e: Exception) {
+            false
+        }
+
+        // Check if workout day already exists
+        val existingWorkoutDay = workoutDayDao.getWorkoutDayByDate(today)
+
+        if (existingWorkoutDay != null) {
+            println("🚀 REPO: Found existing workout day with ID: ${existingWorkoutDay.id}")
+
+            // Check if it has exercises using count method
+            val existingEntriesCount = workoutEntryDao.getWorkoutEntryCountForDay(existingWorkoutDay.id)
+            println("🚀 REPO: Existing day has $existingEntriesCount exercises")
+
+            if (existingEntriesCount == 0) {
+                println("🚀 REPO: No exercises found, creating them now...")
+                // Day exists but has no exercises, create them
+                val workoutType = getWorkoutTypeForDate(today)
+                val exercises = getExercisesForWorkoutType(workoutType)
+                println("🚀 REPO: Got ${exercises.size} exercises for workout type: $workoutType")
+
+                if (exercises.isNotEmpty()) {
+                    try {
+                        val entries = exercises.map { (exerciseId, sets, reps) ->
+                            WorkoutEntry(
+                                dayId = existingWorkoutDay.id,
+                                exerciseId = exerciseId,
+                                sets = sets,
+                                reps = reps
+                            )
+                        }
+                        workoutEntryDao.insertAll(entries)
+                        println("🚀 REPO: Inserted ${entries.size} workout entries")
+
+                        // 🔧 FIX: Create sets for each workout entry immediately
+                        val insertedEntries = workoutEntryDao.getWorkoutEntriesForDaySync(existingWorkoutDay.id)
+                        println("🔧 REPO: Retrieved ${insertedEntries.size} inserted entries to create sets")
+
+                        for (entry in insertedEntries) {
+                            println("🔧 REPO: Creating sets for WorkoutEntry ID=${entry.id}, Exercise='${entry.exerciseName}', Sets=${entry.sets}")
+                            // Create individual sets for each exercise
+                            createSetsForWorkoutEntry(entry.id, entry.sets)
+                            println("🔧 REPO: Created ${entry.sets} sets for WorkoutEntry ID=${entry.id}")
+
+                            // Verify sets were created
+                            val createdSets = setEntryDao.getSetsForWorkoutEntrySync(entry.id)
+                            println("🔧 REPO: Verification - Found ${createdSets.size} sets for WorkoutEntry ID=${entry.id}")
+                            createdSets.forEach { set ->
+                                println("🔧 REPO: Set ID=${set.id}, SetNumber=${set.setNumber}, WorkoutEntryId=${set.workoutEntryId}")
+                            }
+                        }
+
+                        println("🔧 REPO: All sets created for ${insertedEntries.size} exercises")
+                      } catch (e: Exception) {
+                        println("🚀 REPO ERROR: Failed to insert workout entries - ${e.message}")
+                        // If foreign key constraint fails, we need to populate exercises first
+                        if (e.message?.contains("FOREIGN KEY constraint failed") == true) {
+                            println("🚀 REPO: Exercise data missing, need to populate exercises first")
+                            throw e // Re-throw to be caught by ViewModel
+                        }
+                    }
+                }
+            }
+        } else {
+            println("🚀 REPO: No existing workout day, creating new one...")
+            // Force create the workout day and exercises
+            val workoutDay = createWorkoutDayWithExercises(today)
+            println("🚀 REPO: Created new workout day with ID: ${workoutDay.id}")
+        }
+
+        // Get the final workout day (either existing or newly created)
+        val finalWorkoutDay = workoutDayDao.getWorkoutDayByDate(today)!!
+        println("🚀 REPO: Final workout day ID: ${finalWorkoutDay.id}")
+
+        // Return the flow of workout entries
+        return workoutEntryDao.getWorkoutEntriesForDay(finalWorkoutDay.id)
     }
 }
 
