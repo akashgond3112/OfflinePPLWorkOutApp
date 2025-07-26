@@ -173,6 +173,7 @@ fun MainScreen(
             // Show Daily Workout Screen
             DailyWorkoutScreen(
                 viewModel = viewModel,
+                repository = repository,
                 onExerciseClick = { exercise -> selectedExercise = exercise },
                 modifier = Modifier.padding(innerPadding)
             )
@@ -206,6 +207,7 @@ fun MainScreen(
 @Composable
 fun DailyWorkoutScreen(
     viewModel: DailyWorkoutViewModel,
+    repository: WorkoutRepository,
     modifier: Modifier = Modifier,
     onExerciseClick: (WorkoutEntryWithExercise) -> Unit = {}
 ) {
@@ -309,6 +311,7 @@ fun DailyWorkoutScreen(
                 StartWorkoutScreen(
                     workoutType = viewModel.getWorkoutTypeName(),
                     onStartWorkout = {
+                        println("🔥 UI: Start Workout button clicked!")
                         viewModel.createTodaysWorkout()
                     }
                 )
@@ -324,7 +327,8 @@ fun DailyWorkoutScreen(
                 items(todaysWorkout) { workoutEntry ->
                     WorkoutExerciseItemWithSetProgress(
                         workoutEntry = workoutEntry,
-                        onClick = onExerciseClick
+                        onClick = onExerciseClick,
+                        repository = repository
                     )
                 }
             }
@@ -603,7 +607,7 @@ fun WorkoutExerciseItemWithTimer(workoutEntry: WorkoutEntryWithExercise, onCompl
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "Time spent: ${workoutEntry.totalSecondsSpent / 60}:${String.format("%02d", workoutEntry.totalSecondsSpent % 60)}",
+                        text = "Time spent: ${workoutEntry.totalSecondsSpent / 60}:${String.format(Locale.getDefault(), "%02d", workoutEntry.totalSecondsSpent % 60)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
@@ -614,7 +618,15 @@ fun WorkoutExerciseItemWithTimer(workoutEntry: WorkoutEntryWithExercise, onCompl
 }
 
 @Composable
-fun WorkoutExerciseItemWithSetProgress(workoutEntry: WorkoutEntryWithExercise, onClick: (WorkoutEntryWithExercise) -> Unit = {}) {
+fun WorkoutExerciseItemWithSetProgress(workoutEntry: WorkoutEntryWithExercise, onClick: (WorkoutEntryWithExercise) -> Unit = {}, repository: WorkoutRepository) {
+    // Get the actual completed sets count from the database for this specific exercise
+    var completedSetsCount by remember { mutableStateOf(0) }
+
+    // Load the actual completed sets for this specific workout entry
+    LaunchedEffect(workoutEntry.id) {
+        completedSetsCount = repository.getCompletedSetsCount(workoutEntry.id)
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -662,9 +674,8 @@ fun WorkoutExerciseItemWithSetProgress(workoutEntry: WorkoutEntryWithExercise, o
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Set Progress Bar and Status
-            val completedSets = if (workoutEntry.isCompleted) workoutEntry.sets else 0 // TODO: Get actual completed sets from DB
-            val progress = if (workoutEntry.sets > 0) completedSets.toFloat() / workoutEntry.sets.toFloat() else 0f
+            // Set Progress Bar and Status - NOW USING ACTUAL COMPLETED SETS FROM DATABASE
+            val progress = if (workoutEntry.sets > 0) completedSetsCount.toFloat() / workoutEntry.sets.toFloat() else 0f
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -673,7 +684,7 @@ fun WorkoutExerciseItemWithSetProgress(workoutEntry: WorkoutEntryWithExercise, o
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (workoutEntry.isCompleted) "✅ Completed" else "Set $completedSets/${workoutEntry.sets}",
+                        text = if (workoutEntry.isCompleted) "✅ Completed" else "Set $completedSetsCount/${workoutEntry.sets}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (workoutEntry.isCompleted)
                             MaterialTheme.colorScheme.primary
