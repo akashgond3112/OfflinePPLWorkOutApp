@@ -1,0 +1,184 @@
+<svg viewBox="0 0 1400 1000" xmlns="http://www.w3.org/2000/svg">
+  <!-- Title -->
+  <text x="700" y="30" text-anchor="middle" font-size="24" font-weight="bold">Workout App Workflow</text>
+  
+  <!-- Swim lanes -->
+  <line x1="50" y1="70" x2="1350" y2="70" stroke="#333" stroke-width="2"/>
+  <line x1="350" y1="70" x2="350" y2="950" stroke="#333" stroke-width="1" stroke-dasharray="5,5"/>
+  <line x1="700" y1="70" x2="700" y2="950" stroke="#333" stroke-width="1" stroke-dasharray="5,5"/>
+  <line x1="1050" y1="70" x2="1050" y2="950" stroke="#333" stroke-width="1" stroke-dasharray="5,5"/>
+  
+  <!-- Lane headers -->
+  <text x="200" y="55" text-anchor="middle" font-weight="bold" font-size="16">User Actions</text>
+  <text x="525" y="55" text-anchor="middle" font-weight="bold" font-size="16">App Logic</text>
+  <text x="875" y="55" text-anchor="middle" font-weight="bold" font-size="16">Database Operations</text>
+  <text x="1200" y="55" text-anchor="middle" font-weight="bold" font-size="16">Data Flow</text>
+  
+  <!-- Initial Setup Flow -->
+  <rect x="80" y="100" width="200" height="40" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2" rx="20"/>
+  <text x="180" y="125" text-anchor="middle" fill="white">App First Launch</text>
+  
+  <line x1="280" y1="120" x2="380" y2="120" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="380" y="100" width="240" height="40" fill="#52B788" stroke="#2D6A4F" stroke-width="2" rx="5"/>
+  <text x="500" y="125" text-anchor="middle" fill="white">Initialize Master Data</text>
+  
+  <line x1="620" y1="120" x2="730" y2="120" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="730" y="90" width="280" height="60" fill="#FFE5E9" stroke="#E85D75" stroke-width="2" rx="5"/>
+  <text x="870" y="110" text-anchor="middle">Insert Default:</text>
+  <text x="870" y="130" text-anchor="middle" font-size="12">• Exercises • Templates</text>
+  <text x="870" y="145" text-anchor="middle" font-size="12">• Template-Exercise Links</text>
+  
+  <!-- Daily Workout Flow -->
+  <rect x="80" y="200" width="200" height="40" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2" rx="20"/>
+  <text x="180" y="225" text-anchor="middle" fill="white">User Opens App</text>
+  
+  <line x1="280" y1="220" x2="380" y2="220" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="380" y="200" width="240" height="40" fill="#52B788" stroke="#2D6A4F" stroke-width="2" rx="5"/>
+  <text x="500" y="225" text-anchor="middle" fill="white">Check Current Day</text>
+  
+  <line x1="620" y1="220" x2="730" y2="220" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="730" y="200" width="280" height="40" fill="#FFE5E9" stroke="#E85D75" stroke-width="2" rx="5"/>
+  <text x="870" y="225" text-anchor="middle">Query: Get Template by Day</text>
+  
+  <!-- Decision Diamond -->
+  <polygon points="500,280 550,310 500,340 450,310" fill="#FFC107" stroke="#333" stroke-width="2"/>
+  <text x="500" y="315" text-anchor="middle" font-size="12">Rest Day?</text>
+  
+  <line x1="500" y1="240" x2="500" y2="280" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Rest Day Path -->
+  <line x1="450" y1="310" x2="350" y2="310" stroke="#333" stroke-width="2"/>
+  <rect x="150" y="290" width="200" height="40" fill="#F8F9FA" stroke="#333" stroke-width="2" rx="5"/>
+  <text x="250" y="315" text-anchor="middle">Show "Rest Day" Message</text>
+  
+  <!-- Workout Day Path -->
+  <line x1="550" y1="310" x2="730" y2="310" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="730" y="280" width="280" height="60" fill="#FFE5E9" stroke="#E85D75" stroke-width="2" rx="5"/>
+  <text x="870" y="300" text-anchor="middle">Query: Get User Exercises</text>
+  <text x="870" y="320" text-anchor="middle" font-size="12">(JOIN with user settings)</text>
+  <text x="870" y="335" text-anchor="middle" font-size="12">COALESCE custom/default values</text>
+  
+  <rect x="1080" y="280" width="240" height="60" fill="#E8F0FE" stroke="#4A90E2" stroke-width="2" rx="5"/>
+  <text x="1200" y="300" text-anchor="middle">Return Exercise List:</text>
+  <text x="1200" y="320" text-anchor="middle" font-size="12">• Sets (custom or default)</text>
+  <text x="1200" y="335" text-anchor="middle" font-size="12">• Reps, Rest time</text>
+  
+  <line x1="1010" y1="310" x2="1080" y2="310" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Start Workout -->
+  <rect x="80" y="390" width="200" height="40" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2" rx="20"/>
+  <text x="180" y="415" text-anchor="middle" fill="white">User Starts Workout</text>
+  
+  <line x1="280" y1="410" x2="380" y2="410" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="380" y="390" width="240" height="40" fill="#52B788" stroke="#2D6A4F" stroke-width="2" rx="5"/>
+  <text x="500" y="415" text-anchor="middle" fill="white">Create New Session</text>
+  
+  <line x1="620" y1="410" x2="730" y2="410" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="730" y="390" width="280" height="40" fill="#FFE5E9" stroke="#E85D75" stroke-width="2" rx="5"/>
+  <text x="870" y="415" text-anchor="middle">Insert: workout_sessions</text>
+  
+  <!-- Exercise Performance Loop -->
+  <rect x="80" y="480" width="200" height="40" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2" rx="20"/>
+  <text x="180" y="505" text-anchor="middle" fill="white">Perform Exercise</text>
+  
+  <line x1="280" y1="500" x2="380" y2="500" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="380" y="480" width="240" height="40" fill="#52B788" stroke="#2D6A4F" stroke-width="2" rx="5"/>
+  <text x="500" y="505" text-anchor="middle" fill="white">Track Exercise Start</text>
+  
+  <line x1="620" y1="500" x2="730" y2="500" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="730" y="480" width="280" height="40" fill="#FFE5E9" stroke="#E85D75" stroke-width="2" rx="5"/>
+  <text x="870" y="505" text-anchor="middle">Insert: exercise_performances</text>
+  
+  <!-- Set Performance -->
+  <rect x="80" y="560" width="200" height="40" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2" rx="20"/>
+  <text x="180" y="585" text-anchor="middle" fill="white">Complete Set</text>
+  
+  <line x1="280" y1="580" x2="380" y2="580" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="380" y="560" width="240" height="40" fill="#52B788" stroke="#2D6A4F" stroke-width="2" rx="5"/>
+  <text x="500" y="585" text-anchor="middle" fill="white">Record Set Data</text>
+  
+  <line x1="620" y1="580" x2="730" y2="580" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="730" y="560" width="280" height="40" fill="#FFE5E9" stroke="#E85D75" stroke-width="2" rx="5"/>
+  <text x="870" y="585" text-anchor="middle">Insert: set_performances</text>
+  
+  <rect x="1080" y="560" width="240" height="40" fill="#E8F0FE" stroke="#4A90E2" stroke-width="2" rx="5"/>
+  <text x="1200" y="585" text-anchor="middle">Store: reps, weight, time</text>
+  
+  <line x1="1010" y1="580" x2="1080" y2="580" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Loop back for multiple sets -->
+  <path d="M 180 600 Q 50 600 50 520 Q 50 520 180 520" fill="none" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <text x="30" y="560" font-size="12" transform="rotate(-90 30 560)">Repeat for each set</text>
+  
+  <!-- Complete Exercise -->
+  <rect x="380" y="640" width="240" height="40" fill="#52B788" stroke="#2D6A4F" stroke-width="2" rx="5"/>
+  <text x="500" y="665" text-anchor="middle" fill="white">Calculate Exercise Time</text>
+  
+  <line x1="620" y1="660" x2="730" y2="660" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="730" y="640" width="280" height="40" fill="#FFE5E9" stroke="#E85D75" stroke-width="2" rx="5"/>
+  <text x="870" y="665" text-anchor="middle">Update: exercise_performances</text>
+  
+  <!-- Loop for multiple exercises -->
+  <path d="M 500 680 Q 350 680 350 460 Q 350 460 500 460" fill="none" stroke="#4A90E2" stroke-width="2" marker-end="url(#arrowhead)" stroke-dasharray="5,5"/>
+  <text x="300" y="570" font-size="12" fill="#4A90E2">Next Exercise</text>
+  
+  <!-- Complete Workout -->
+  <rect x="80" y="730" width="200" height="40" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2" rx="20"/>
+  <text x="180" y="755" text-anchor="middle" fill="white">Finish Workout</text>
+  
+  <line x1="280" y1="750" x2="380" y2="750" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="380" y="730" width="240" height="40" fill="#52B788" stroke="#2D6A4F" stroke-width="2" rx="5"/>
+  <text x="500" y="755" text-anchor="middle" fill="white">Calculate Total Time</text>
+  
+  <line x1="620" y1="750" x2="730" y2="750" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="730" y="730" width="280" height="40" fill="#FFE5E9" stroke="#E85D75" stroke-width="2" rx="5"/>
+  <text x="870" y="755" text-anchor="middle">Update: workout_sessions</text>
+  
+  <!-- View History -->
+  <rect x="80" y="820" width="200" height="40" fill="#4A90E2" stroke="#2E5C8A" stroke-width="2" rx="20"/>
+  <text x="180" y="845" text-anchor="middle" fill="white">View History</text>
+  
+  <line x1="280" y1="840" x2="380" y2="840" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="380" y="820" width="240" height="40" fill="#52B788" stroke="#2D6A4F" stroke-width="2" rx="5"/>
+  <text x="500" y="845" text-anchor="middle" fill="white">Request Past Workouts</text>
+  
+  <line x1="620" y1="840" x2="730" y2="840" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <rect x="730" y="820" width="280" height="40" fill="#FFE5E9" stroke="#E85D75" stroke-width="2" rx="5"/>
+  <text x="870" y="845" text-anchor="middle">Query: All session tables</text>
+  
+  <rect x="1080" y="820" width="240" height="40" fill="#E8F0FE" stroke="#4A90E2" stroke-width="2" rx="5"/>
+  <text x="1200" y="845" text-anchor="middle">Display workout history</text>
+  
+  <line x1="1010" y1="840" x2="1080" y2="840" stroke="#333" stroke-width="2" marker-end="url(#arrowhead)"/>
+  
+  <!-- Arrow marker definition -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+    </marker>
+  </defs>
+  
+  <!-- Key Features Box -->
+  <rect x="80" y="900" width="1240" height="80" fill="#F8F9FA" stroke="#333" stroke-width="1" rx="5"/>
+  <text x="700" y="920" text-anchor="middle" font-weight="bold" font-size="16">Key Workflow Features</text>
+  <text x="100" y="945" font-size="14">• Daily workouts automatically determined by current day of week</text>
+  <text x="100" y="965" font-size="14">• User customizations override defaults via COALESCE in queries</text>
+  <text x="700" y="945" font-size="14">• Each workout creates new history records</text>
+  <text x="700" y="965" font-size="14">• Tomorrow's workout loads fresh from templates</text>
+</svg>
