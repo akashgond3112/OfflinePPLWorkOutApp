@@ -6,10 +6,12 @@ This document outlines the migration path from the current simplified architectu
 ## Current State Analysis ✅
 
 ### Database Schema (Working)
-- [x] **exercises** table: Basic structure with `id`, `name`, `isCompound` ✅
+- [x] **exercises** table: Enhanced with rich metadata (primaryMuscle, secondaryMuscles, equipment, difficulty, instructions, tips, category) ✅
 - [x] **workout_days** table: Stores daily workout sessions ✅
 - [x] **workout_entries** table: Links exercises to workout days ✅
 - [x] **set_entries** table: Individual set tracking with timing ✅
+- [x] **workout_templates** table: Template definitions for reusable workouts ✅
+- [x] **template_exercises** table: Junction table linking templates to exercises ✅
 
 ### Features Working
 - [x] PPL workout creation based on day of week
@@ -18,99 +20,31 @@ This document outlines the migration path from the current simplified architectu
 - [x] Cross-exercise contamination fixed
 - [x] Database reset functionality for development
 - [x] Timer functionality with start/stop per set
+- [x] Enhanced exercise library with rich metadata
 
 ### Current Architecture
-- **Exercise Library**: Hardcoded in `PPLWorkoutDatabase.getPPLExercises()` (34 exercises)
-- **Workout Logic**: Day-based in repository layer
-- **Database Version**: 5 (with destructive migration enabled)
+- **Exercise Library**: Rich metadata with 34+ exercises in `ExerciseData.getPPLExercises()` ✅
+- **Template System**: Complete entities and DAOs created ✅
+- **Workout Logic**: Day-based (to be migrated to template-based)
+- **Database Version**: 7 (with template system migration)
 
 ---
 
 ## Phase 1: Enhanced Exercise Library & Templates 📊
 
-### 1.1 Enhance Exercise Entity ⭐ **START HERE**
-**Current**: Simple Exercise entity with `id`, `name`, `isCompound`
-**Target**: Rich exercise metadata for better user experience
+### 1.1 Enhance Exercise Entity ✅ **COMPLETED**
+- [x] **1.1.1** Expanded Exercise entity with additional fields ✅
+- [x] **1.1.2** Created database migration (Version 5 → 6) ✅
+- [x] **1.1.3** Updated exercise data with rich metadata ✅
 
-#### Tasks:
-- [ ] **1.1.1** Expand Exercise entity with additional fields:
-  ```kotlin
-  data class Exercise(
-      @PrimaryKey val id: Int,
-      val name: String,
-      val isCompound: Boolean,
-      val primaryMuscle: String,      // NEW
-      val secondaryMuscles: String,   // NEW - comma separated
-      val equipment: String,          // NEW - "Barbell", "Dumbbell", etc.
-      val difficulty: String,         // NEW - "Beginner", "Intermediate", "Advanced" 
-      val instructions: String,       // NEW - Step by step guide
-      val tips: String,              // NEW - Form tips and common mistakes
-      val category: String           // NEW - "Push", "Pull", "Legs"
-  )
-  ```
+### 1.2 Create Workout Templates System ✅ **COMPLETED**
+- [x] **1.2.1** Created WorkoutTemplate entity ✅
+- [x] **1.2.2** Created TemplateExercise junction entity ✅
+- [x] **1.2.3** Created corresponding DAOs (WorkoutTemplateDao, TemplateExerciseDao) ✅
+- [x] **1.2.4** Updated database schema (Version 6 → 7) ✅
+- [x] **1.2.5** Created PPL template data with 6 predefined templates ✅
 
-- [ ] **1.1.2** Create database migration (Version 5 → 6):
-  ```kotlin
-  val MIGRATION_5_6 = object : Migration(5, 6) {
-      override fun migrate(database: SupportSQLiteDatabase) {
-          // Add new columns with default values
-          database.execSQL("ALTER TABLE exercises ADD COLUMN primaryMuscle TEXT NOT NULL DEFAULT ''")
-          database.execSQL("ALTER TABLE exercises ADD COLUMN secondaryMuscles TEXT NOT NULL DEFAULT ''")
-          // ... add other columns
-      }
-  }
-  ```
-
-- [ ] **1.1.3** Update `getPPLExercises()` with rich metadata:
-  ```kotlin
-  Exercise(1, "Barbell Bench Press", true, 
-          primaryMuscle = "Chest", 
-          secondaryMuscles = "Triceps,Front Delts",
-          equipment = "Barbell", 
-          difficulty = "Intermediate",
-          instructions = "1. Lie on bench...",
-          tips = "Keep shoulder blades retracted...",
-          category = "Push")
-  ```
-
-### 1.2 Create Workout Templates System
-**Goal**: Replace hardcoded day-based logic with flexible templates
-
-#### Tasks:
-- [ ] **1.2.1** Create WorkoutTemplate entity:
-  ```kotlin
-  @Entity(tableName = "workout_templates")
-  data class WorkoutTemplate(
-      @PrimaryKey(autoGenerate = true) val id: Int = 0,
-      val name: String,              // "Push Day 1", "Pull Day 1", etc.
-      val description: String,       // "Chest and Triceps focused"
-      val estimatedDuration: Int,    // Minutes
-      val difficulty: String,        // "Beginner", "Intermediate", "Advanced"
-      val category: String          // "Push", "Pull", "Legs"
-  )
-  ```
-
-- [ ] **1.2.2** Create TemplateExercise junction entity:
-  ```kotlin
-  @Entity(tableName = "template_exercises")
-  data class TemplateExercise(
-      @PrimaryKey(autoGenerate = true) val id: Int = 0,
-      val templateId: Int,           // FK to workout_templates
-      val exerciseId: Int,           // FK to exercises
-      val orderIndex: Int,           // Exercise order in template
-      val sets: Int,                 // Default sets for this exercise
-      val reps: Int,                 // Default reps for this exercise
-      val restSeconds: Int          // Recommended rest between sets
-  )
-  ```
-
-- [ ] **1.2.3** Create corresponding DAOs:
-  ```kotlin
-  @Dao interface WorkoutTemplateDao
-  @Dao interface TemplateExerciseDao
-  ```
-
-### 1.3 Implement Template-Based Workout Creation
+### 1.3 Implement Template-Based Workout Creation 🚀 **IN PROGRESS**
 **Goal**: Replace current day-based workout creation with template selection
 
 #### Tasks:
@@ -119,14 +53,10 @@ This document outlines the migration path from the current simplified architectu
   suspend fun createWorkoutFromTemplate(templateId: Int, date: String): List<WorkoutEntry>
   ```
 
-- [ ] **1.3.2** Create template population in database:
-  ```kotlin
-  private fun getPPLTemplates(): List<WorkoutTemplate>
-  private fun getTemplateExercises(): List<TemplateExercise>
-  ```
-
+- [ ] **1.3.2** Populate templates in database on first run ⭐ **NEXT**
 - [ ] **1.3.3** Update ViewModel to use template-based creation
 - [ ] **1.3.4** Migrate from day-based to template-based workout creation
+- [ ] **1.3.5** Update UI to show template selection (optional for phase 1)
 
 ---
 
