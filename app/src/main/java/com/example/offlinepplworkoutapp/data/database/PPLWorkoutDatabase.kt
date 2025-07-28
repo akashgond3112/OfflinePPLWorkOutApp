@@ -10,19 +10,24 @@ import com.example.offlinepplworkoutapp.data.dao.ExerciseDao
 import com.example.offlinepplworkoutapp.data.dao.WorkoutDayDao
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryDao
 import com.example.offlinepplworkoutapp.data.dao.SetEntryDao
+import com.example.offlinepplworkoutapp.data.dao.WorkoutTemplateDao
+import com.example.offlinepplworkoutapp.data.dao.TemplateExerciseDao
 import com.example.offlinepplworkoutapp.data.entity.Exercise
 import com.example.offlinepplworkoutapp.data.entity.WorkoutDay
 import com.example.offlinepplworkoutapp.data.entity.WorkoutEntry
 import com.example.offlinepplworkoutapp.data.entity.SetEntry
+import com.example.offlinepplworkoutapp.data.entity.WorkoutTemplate
+import com.example.offlinepplworkoutapp.data.entity.TemplateExercise
 import com.example.offlinepplworkoutapp.data.ExerciseData
+import com.example.offlinepplworkoutapp.data.PPLTemplateData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Database(
-    entities = [Exercise::class, WorkoutDay::class, WorkoutEntry::class, SetEntry::class],
-    version = 6,  // Updated from 5 to 6
+    entities = [Exercise::class, WorkoutDay::class, WorkoutEntry::class, SetEntry::class, WorkoutTemplate::class, TemplateExercise::class],
+    version = 7,  // Updated from 6 to 7 for template system
     exportSchema = false
 )
 abstract class PPLWorkoutDatabase : RoomDatabase() {
@@ -31,6 +36,8 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
     abstract fun workoutDayDao(): WorkoutDayDao
     abstract fun workoutEntryDao(): WorkoutEntryDao
     abstract fun setEntryDao(): SetEntryDao
+    abstract fun workoutTemplateDao(): WorkoutTemplateDao
+    abstract fun templateExerciseDao(): TemplateExerciseDao
 
     private class PPLWorkoutDatabaseCallback : RoomDatabase.Callback() {
 
@@ -39,18 +46,24 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
             INSTANCE?.let { database ->
                 CoroutineScope(Dispatchers.IO).launch {
                     populateDatabase(database.exerciseDao())
+                    populateTemplates(database.workoutTemplateDao(), database.templateExerciseDao())
                 }
             }
         }
 
         override fun onOpen(db: SupportSQLiteDatabase) {
             super.onOpen(db)
-            // Ensure exercises are populated even if database already exists
+            // Ensure exercises and templates are populated even if database already exists
             INSTANCE?.let { database ->
                 CoroutineScope(Dispatchers.IO).launch {
                     val exerciseCount = database.exerciseDao().getExerciseCount()
                     if (exerciseCount == 0) {
                         populateDatabase(database.exerciseDao())
+                    }
+
+                    val templateCount = database.workoutTemplateDao().getTemplateCount()
+                    if (templateCount == 0) {
+                        populateTemplates(database.workoutTemplateDao(), database.templateExerciseDao())
                     }
                 }
             }
@@ -64,27 +77,69 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
             val exercises = getPPLExercises()
             exerciseDao.insertAll(exercises)
         }
+
+        suspend fun populateTemplates(templateDao: WorkoutTemplateDao, templateExerciseDao: TemplateExerciseDao) {
+            // Clear existing template data
+            templateExerciseDao.deleteAll()
+            templateDao.deleteAll()
+
+            // Insert PPL templates
+            val templates = PPLTemplateData.getPPLTemplates()
+            templateDao.insertTemplates(templates)
+
+            // Insert template exercises
+            val templateExercises = PPLTemplateData.getTemplateExercises()
+            templateExerciseDao.insertTemplateExercises(templateExercises)
+
+            println("🏋️ DATABASE: Successfully populated ${templates.size} templates with ${templateExercises.size} template exercises")
+        }
     }
 
     companion object {
         @Volatile
         private var INSTANCE: PPLWorkoutDatabase? = null
 
-        // Migration from version 5 to 6 - Add new Exercise fields
-        val MIGRATION_5_6 = object : Migration(5, 6) {
+        // Migration from version 6 to 7 - Add WorkoutTemplate and TemplateExercise tables
+        val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                println("🔄 MIGRATION: Starting migration from v5 to v6...")
+                println("🔄 MIGRATION: Starting migration from v6 to v7...")
 
-                // Add new columns to exercises table with default values
-                database.execSQL("ALTER TABLE exercises ADD COLUMN primaryMuscle TEXT NOT NULL DEFAULT ''")
-                database.execSQL("ALTER TABLE exercises ADD COLUMN secondaryMuscles TEXT NOT NULL DEFAULT ''")
-                database.execSQL("ALTER TABLE exercises ADD COLUMN equipment TEXT NOT NULL DEFAULT ''")
-                database.execSQL("ALTER TABLE exercises ADD COLUMN difficulty TEXT NOT NULL DEFAULT 'Intermediate'")
-                database.execSQL("ALTER TABLE exercises ADD COLUMN instructions TEXT NOT NULL DEFAULT ''")
-                database.execSQL("ALTER TABLE exercises ADD COLUMN tips TEXT NOT NULL DEFAULT ''")
-                database.execSQL("ALTER TABLE exercises ADD COLUMN category TEXT NOT NULL DEFAULT ''")
+                // Create WorkoutTemplate table
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `workout_templates` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `description` TEXT NOT NULL,
+                        `estimatedDuration` INTEGER NOT NULL,
+                        `difficulty` TEXT NOT NULL,
+                        `category` TEXT NOT NULL,
+                        `isCustom` INTEGER NOT NULL DEFAULT 0,
+                        `isActive` INTEGER NOT NULL DEFAULT 1,
+                        `createdDate` TEXT NOT NULL DEFAULT '',
+                        `lastUsedDate` TEXT NOT NULL DEFAULT ''
+                    )
+                """.trimIndent())
 
-                println("🔄 MIGRATION: Successfully added new columns to exercises table")
+                // Create TemplateExercise table
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `template_exercises` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `templateId` INTEGER NOT NULL,
+                        `exerciseId` INTEGER NOT NULL,
+                        `orderIndex` INTEGER NOT NULL,
+                        `sets` INTEGER NOT NULL,
+                        `reps` INTEGER NOT NULL,
+                        `restSeconds` INTEGER NOT NULL,
+                        `weight` REAL NOT NULL DEFAULT 0.0,
+                        `notes` TEXT NOT NULL DEFAULT '',
+                        `isSuperset` INTEGER NOT NULL DEFAULT 0,
+                        `supersetGroup` INTEGER NOT NULL DEFAULT 0,
+                        FOREIGN KEY(`templateId`) REFERENCES `workout_templates`(`id`) ON DELETE CASCADE,
+                        FOREIGN KEY(`exerciseId`) REFERENCES `exercises`(`id`) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+
+                println("🔄 MIGRATION: Successfully created WorkoutTemplate and TemplateExercise tables")
             }
         }
 
@@ -96,7 +151,7 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
                     "ppl_workout_database"
                 )
                     .addCallback(PPLWorkoutDatabaseCallback())
-                    .addMigrations(MIGRATION_5_6)  // Fixed: use addMigrations instead of addMigration
+                    .addMigrations(MIGRATION_6_7)  // Fixed: use addMigrations instead of addMigration
                     .fallbackToDestructiveMigration()
                     // Force database recreation to ensure clean state
                     .build()
