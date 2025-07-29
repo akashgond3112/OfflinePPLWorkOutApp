@@ -50,7 +50,9 @@ class MainActivity : ComponentActivity() {
         repository = WorkoutRepository(
             workoutDayDao = database.workoutDayDao(),
             workoutEntryDao = database.workoutEntryDao(),
-            setEntryDao = database.setEntryDao()
+            setEntryDao = database.setEntryDao(),
+            workoutTemplateDao = database.workoutTemplateDao(),
+            templateExerciseDao = database.templateExerciseDao()
         )
 
         enableEdgeToEdge()
