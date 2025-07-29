@@ -3,9 +3,13 @@ package com.example.offlinepplworkoutapp.data.repository
 import com.example.offlinepplworkoutapp.data.dao.WorkoutDayDao
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryDao
 import com.example.offlinepplworkoutapp.data.dao.SetEntryDao
+import com.example.offlinepplworkoutapp.data.dao.WorkoutTemplateDao
+import com.example.offlinepplworkoutapp.data.dao.TemplateExerciseDao
 import com.example.offlinepplworkoutapp.data.entity.WorkoutDay
 import com.example.offlinepplworkoutapp.data.entity.WorkoutEntry
 import com.example.offlinepplworkoutapp.data.entity.SetEntry
+import com.example.offlinepplworkoutapp.data.entity.WorkoutTemplate
+import com.example.offlinepplworkoutapp.data.PPLTemplateData
 import kotlinx.coroutines.flow.Flow
 import java.text.SimpleDateFormat
 import java.util.*
@@ -13,10 +17,109 @@ import java.util.*
 class WorkoutRepository(
     private val workoutDayDao: WorkoutDayDao,
     private val workoutEntryDao: WorkoutEntryDao,
-    private val setEntryDao: SetEntryDao
+    private val setEntryDao: SetEntryDao,
+    private val workoutTemplateDao: WorkoutTemplateDao,
+    private val templateExerciseDao: TemplateExerciseDao
 ) {
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+    // ===========================================
+    // TEMPLATE-BASED WORKOUT CREATION (NEW)
+    // ===========================================
+
+    /**
+     * Create workout from template - Main template-based workout creation method
+     * This replaces the hardcoded day-based logic with flexible template system
+     */
+    suspend fun createWorkoutFromTemplate(templateId: Int, date: String): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
+        println("🚀 REPO: Creating workout from template $templateId for date: $date")
+
+        // Get or create workout day
+        val workoutDay = getOrCreateWorkoutDayOnly(date)
+
+        // Check if this day already has exercises
+        val existingEntries = workoutEntryDao.getWorkoutEntriesForDaySync(workoutDay.id)
+        if (existingEntries.isNotEmpty()) {
+            println("🚀 REPO: Found existing workout day with ${existingEntries.size} exercises")
+            return workoutEntryDao.getWorkoutEntriesForDay(workoutDay.id)
+        }
+
+        // Get template exercises
+        val templateExercises = templateExerciseDao.getExercisesForTemplate(templateId)
+        println("🚀 REPO: Got ${templateExercises.size} exercises for template $templateId")
+
+        if (templateExercises.isNotEmpty()) {
+            // Create workout entries from template
+            val entries = templateExercises.map { templateExercise ->
+                WorkoutEntry(
+                    dayId = workoutDay.id,
+                    exerciseId = templateExercise.exerciseId,
+                    sets = templateExercise.sets,
+                    reps = templateExercise.reps
+                )
+            }
+
+            workoutEntryDao.insertAll(entries)
+            println("🚀 REPO: Inserted ${entries.size} workout entries from template")
+
+            // Create sets for each workout entry
+            val insertedEntries = workoutEntryDao.getWorkoutEntriesForDaySync(workoutDay.id)
+            createSetsForEntries(insertedEntries)
+
+            // Update template last used date
+            workoutTemplateDao.updateLastUsedDate(templateId, date)
+        }
+
+        return workoutEntryDao.getWorkoutEntriesForDay(workoutDay.id)
+    }
+
+    /**
+     * Create today's workout using template-based system
+     * Automatically determines which template to use based on day of week
+     */
+    suspend fun createTodaysWorkoutFromTemplate(): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
+        val today = dateFormat.format(Date())
+        val templateId = getTemplateIdForDate(today)
+
+        return if (templateId > 0) {
+            createWorkoutFromTemplate(templateId, today)
+        } else {
+            // Rest day - return empty workout
+            println("🚀 REPO: Rest day - no template needed")
+            workoutEntryDao.getWorkoutEntriesForDay(0) // Returns empty flow
+        }
+    }
+
+    /**
+     * Get template ID for a given date based on day of week
+     * This maintains compatibility with current PPL schedule
+     */
+    private fun getTemplateIdForDate(date: String): Int {
+        val calendar = Calendar.getInstance()
+        calendar.time = dateFormat.parse(date) ?: Date()
+        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+
+        return PPLTemplateData.getTemplateIdForDayOfWeek(dayOfWeek)
+    }
+
+    /**
+     * Get available templates for user selection
+     */
+    fun getAvailableTemplates(): Flow<List<WorkoutTemplate>> {
+        return workoutTemplateDao.getAllActiveTemplates()
+    }
+
+    /**
+     * Get templates by category (Push/Pull/Legs)
+     */
+    fun getTemplatesByCategory(category: String): Flow<List<WorkoutTemplate>> {
+        return workoutTemplateDao.getTemplatesByCategory(category)
+    }
+
+    // ===========================================
+    // LEGACY DAY-BASED METHODS (PRESERVED)
+    // ===========================================
 
     suspend fun getTodaysWorkout(): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
         val today = dateFormat.format(Date())
@@ -358,6 +461,40 @@ class WorkoutRepository(
 
         // Return the flow of workout entries
         return workoutEntryDao.getWorkoutEntriesForDay(finalWorkoutDay.id)
+    }
+
+    // ===========================================
+    // HELPER METHODS
+    // ===========================================
+
+    /**
+     * Create workout day only (without exercises) - used by template system
+     */
+    private suspend fun getOrCreateWorkoutDayOnly(date: String): WorkoutDay {
+        return workoutDayDao.getWorkoutDayByDate(date) ?: run {
+            val workoutDay = WorkoutDay(date = date)
+            val dayId = workoutDayDao.insert(workoutDay).toInt()
+            workoutDay.copy(id = dayId)
+        }
+    }
+
+    /**
+     * Create sets for multiple workout entries - used by template system
+     */
+    private suspend fun createSetsForEntries(entries: List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>) {
+        for (entry in entries) {
+            println("🔧 REPO: Creating sets for WorkoutEntry ID=${entry.id}, Exercise='${entry.exerciseName}', Sets=${entry.sets}")
+            createSetsForWorkoutEntry(entry.id, entry.sets)
+            println("🔧 REPO: Created ${entry.sets} sets for WorkoutEntry ID=${entry.id}")
+
+            // Verify sets were created
+            val createdSets = setEntryDao.getSetsForWorkoutEntrySync(entry.id)
+            println("🔧 REPO: Verification - Found ${createdSets.size} sets for WorkoutEntry ID=${entry.id}")
+            createdSets.forEach { set ->
+                println("🔧 REPO: Set ID=${set.id}, SetNumber=${set.setNumber}, WorkoutEntryId=${set.workoutEntryId}")
+            }
+        }
+        println("🔧 REPO: All sets created for ${entries.size} exercises")
     }
 }
 
