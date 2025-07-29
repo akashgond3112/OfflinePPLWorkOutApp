@@ -53,8 +53,12 @@ This document outlines the migration path from the current simplified architectu
   suspend fun createWorkoutFromTemplate(templateId: Int, date: String): List<WorkoutEntry>
   ```
 
-- [ ] **1.3.2** Populate templates in database on first run ⭐ **NEXT**
-- [ ] **1.3.3** Update ViewModel to use template-based creation
+- [x] **1.3.2** Populate templates in database on first run ✅ **COMPLETED**
+  - Created PPLTemplateData.kt with 6 predefined PPL workout templates
+  - Added template-exercise relationships with proper sets, reps, and rest periods
+  - Includes helper functions for day-based compatibility
+
+- [ ] **1.3.3** Update ViewModel to use template-based creation ⭐ **NEXT**
 - [ ] **1.3.4** Migrate from day-based to template-based workout creation
 - [ ] **1.3.5** Update UI to show template selection (optional for phase 1)
 
