@@ -47,8 +47,16 @@ class DailyWorkoutViewModel(
     private val _debugDate = MutableStateFlow<String?>(null)
     val debugDate: StateFlow<String?> = _debugDate.asStateFlow()
 
+    // Template-related state
+    private val _availableTemplates = MutableStateFlow<List<com.example.offlinepplworkoutapp.data.entity.WorkoutTemplate>>(emptyList())
+    val availableTemplates: StateFlow<List<com.example.offlinepplworkoutapp.data.entity.WorkoutTemplate>> = _availableTemplates.asStateFlow()
+
+    private val _selectedTemplate = MutableStateFlow<com.example.offlinepplworkoutapp.data.entity.WorkoutTemplate?>(null)
+    val selectedTemplate: StateFlow<com.example.offlinepplworkoutapp.data.entity.WorkoutTemplate?> = _selectedTemplate.asStateFlow()
+
     init {
         loadTodaysWorkout()
+        loadAvailableTemplates()
     }
 
     private fun loadTodaysWorkout() {
@@ -307,6 +315,101 @@ class DailyWorkoutViewModel(
 
             // Reload today's workout from scratch
             loadTodaysWorkout()
+        }
+    }
+
+    // ===========================================
+    // NEW TEMPLATE-BASED METHODS
+    // ===========================================
+
+    /**
+     * Create today's workout using template system - NEW APPROACH
+     * This will replace the legacy createTodaysWorkout() method
+     */
+    fun createTodaysWorkoutFromTemplate() {
+        println("🎯 VIEWMODEL: createTodaysWorkoutFromTemplate() called")
+        viewModelScope.launch {
+            _isLoading.value = true
+            println("🎯 VIEWMODEL: Starting template-based workout creation...")
+
+            try {
+                repository.createTodaysWorkoutFromTemplate().collect { exercises ->
+                    println("🎯 VIEWMODEL: Received ${exercises.size} exercises from template")
+                    _todaysWorkout.value = exercises
+                    _isLoading.value = false
+                    updateCompletionProgress(exercises)
+                    println("🎯 VIEWMODEL: Template-based workout creation completed successfully")
+                }
+            } catch (e: Exception) {
+                println("🎯 VIEWMODEL ERROR: Failed to create workout from template - ${e.message}")
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Create workout from specific template
+     */
+    fun createWorkoutFromTemplate(templateId: Int, date: String = dateFormat.format(Date())) {
+        println("🎯 VIEWMODEL: createWorkoutFromTemplate() called - templateId: $templateId, date: $date")
+        viewModelScope.launch {
+            _isLoading.value = true
+
+            try {
+                repository.createWorkoutFromTemplate(templateId, date).collect { exercises ->
+                    println("🎯 VIEWMODEL: Received ${exercises.size} exercises from template $templateId")
+                    _todaysWorkout.value = exercises
+                    _isLoading.value = false
+                    updateCompletionProgress(exercises)
+                }
+            } catch (e: Exception) {
+                println("🎯 VIEWMODEL ERROR: Failed to create workout from template $templateId - ${e.message}")
+                _isLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Load available templates for user selection
+     */
+    private fun loadAvailableTemplates() {
+        viewModelScope.launch {
+            repository.getAvailableTemplates().collect { templates ->
+                _availableTemplates.value = templates
+                println("🎯 VIEWMODEL: Loaded ${templates.size} available templates")
+            }
+        }
+    }
+
+    /**
+     * Get templates by category (Push/Pull/Legs)
+     */
+    fun getTemplatesByCategory(category: String) {
+        viewModelScope.launch {
+            repository.getTemplatesByCategory(category).collect { templates ->
+                _availableTemplates.value = templates
+                println("🎯 VIEWMODEL: Loaded ${templates.size} templates for category: $category")
+            }
+        }
+    }
+
+    /**
+     * Select a template for workout creation
+     */
+    fun selectTemplate(template: com.example.offlinepplworkoutapp.data.entity.WorkoutTemplate) {
+        _selectedTemplate.value = template
+        println("🎯 VIEWMODEL: Selected template: ${template.name}")
+    }
+
+    /**
+     * Create workout from currently selected template
+     */
+    fun createWorkoutFromSelectedTemplate() {
+        val template = _selectedTemplate.value
+        if (template != null) {
+            createWorkoutFromTemplate(template.id, _currentDate.value)
+        } else {
+            println("🎯 VIEWMODEL ERROR: No template selected")
         }
     }
 
