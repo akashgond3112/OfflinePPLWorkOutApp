@@ -5,7 +5,7 @@ This document outlines the migration path from the current simplified architectu
 
 ## Current State Analysis ✅
 
-### Database Schema (Working)
+### Database Schema (Working) - Version 7
 - [x] **exercises** table: Enhanced with rich metadata (primaryMuscle, secondaryMuscles, equipment, difficulty, instructions, tips, category) ✅
 - [x] **workout_days** table: Stores daily workout sessions ✅
 - [x] **workout_entries** table: Links exercises to workout days ✅
@@ -13,24 +13,28 @@ This document outlines the migration path from the current simplified architectu
 - [x] **workout_templates** table: Template definitions for reusable workouts ✅
 - [x] **template_exercises** table: Junction table linking templates to exercises ✅
 
-### Features Working
+### Features Working ✅
 - [x] PPL workout creation based on day of week
+- [x] **Template-based workout creation system** ✅
 - [x] Exercise detail screens with set progression
 - [x] Individual set timing and completion tracking
-- [x] Cross-exercise contamination fixed
+- [x] Cross-exercise contamination fixed (sets isolated per exercise)
 - [x] Database reset functionality for development
 - [x] Timer functionality with start/stop per set
-- [x] Enhanced exercise library with rich metadata
+- [x] Enhanced exercise library with rich metadata (34+ exercises)
+- [x] Automatic template population on database creation
+- [x] Template selection and creation methods
 
-### Current Architecture
+### Current Architecture Status
 - **Exercise Library**: Rich metadata with 34+ exercises in `ExerciseData.getPPLExercises()` ✅
-- **Template System**: Complete entities and DAOs created ✅
-- **Workout Logic**: Day-based (to be migrated to template-based)
-- **Database Version**: 7 (with template system migration)
+- **Template System**: Complete entities, DAOs, and repository methods ✅
+- **Workout Logic**: **Both day-based AND template-based systems working** ✅
+- **Database Version**: 7 (with complete template system migration)
+- **UI Layer**: Daily workout screens with template integration ✅
 
 ---
 
-## Phase 1: Enhanced Exercise Library & Templates 📊
+## Phase 1: Enhanced Exercise Library & Templates ✅ **COMPLETED**
 
 ### 1.1 Enhance Exercise Entity ✅ **COMPLETED**
 - [x] **1.1.1** Expanded Exercise entity with additional fields ✅
@@ -44,114 +48,130 @@ This document outlines the migration path from the current simplified architectu
 - [x] **1.2.4** Updated database schema (Version 6 → 7) ✅
 - [x] **1.2.5** Created PPL template data with 6 predefined templates ✅
 
-### 1.3 Implement Template-Based Workout Creation 🚀 **IN PROGRESS**
+### 1.3 Implement Template-Based Workout Creation ✅ **COMPLETED**
 **Goal**: Replace current day-based workout creation with template selection
 
 #### Tasks:
-- [ ] **1.3.1** Update Repository to use templates:
+- [x] **1.3.1** Update Repository to use templates ✅ **COMPLETED**
   ```kotlin
   suspend fun createWorkoutFromTemplate(templateId: Int, date: String): List<WorkoutEntry>
+  suspend fun createTodaysWorkoutFromTemplate(): Flow<List<WorkoutEntryWithExercise>>
+  fun getAvailableTemplates(): Flow<List<WorkoutTemplate>>
+  fun getTemplatesByCategory(category: String): Flow<List<WorkoutTemplate>>
   ```
 
 - [x] **1.3.2** Populate templates in database on first run ✅ **COMPLETED**
   - Created PPLTemplateData.kt with 6 predefined PPL workout templates
   - Added template-exercise relationships with proper sets, reps, and rest periods
   - Includes helper functions for day-based compatibility
+  - Auto-population on database creation
 
-- [ ] **1.3.3** Update ViewModel to use template-based creation ⭐ **NEXT**
-- [ ] **1.3.4** Migrate from day-based to template-based workout creation
-- [ ] **1.3.5** Update UI to show template selection (optional for phase 1)
+- [x] **1.3.3** Update ViewModel to use template-based creation ✅ **COMPLETED**
+  - Added `createWorkoutFromTemplate(templateId: Int, date: String)` method
+  - Integrated template selection logic
+  - Maintains backward compatibility with day-based creation
+
+- [x] **1.3.4** Migrate from day-based to template-based workout creation ✅ **COMPLETED**
+  - Both systems working in parallel
+  - Template-based system handles PPL schedule automatically
+  - Legacy day-based methods preserved for compatibility
+
+- [ ] **1.3.5** Update UI to show template selection (optional for phase 1) ⭐ **NEXT PRIORITY**
+  - Current UI uses automatic template selection based on day
+  - Manual template selection UI not yet implemented
 
 ---
 
-## Phase 2: Advanced Features 🚀
+## Phase 2: Enhanced User Interface & User Experience 🚀 **READY TO START**
 
-### 2.1 Progress Tracking
+### 2.1 Template Selection UI ⭐ **HIGH PRIORITY**
+- [ ] **2.1.1** Create template selection screen
+- [ ] **2.1.2** Add template preview with exercise list
+- [ ] **2.1.3** Allow manual template override for any day
+- [ ] **2.1.4** Show template categories (Push/Pull/Legs)
+- [ ] **2.1.5** Display template metadata (duration, difficulty, last used)
+
+### 2.2 Enhanced Exercise Experience
+- [ ] **2.2.1** Add exercise instruction screens
+- [ ] **2.2.2** Include exercise tips and form cues
+- [ ] **2.2.3** Show primary/secondary muscle groups
+- [ ] **2.2.4** Equipment requirements display
+- [ ] **2.2.5** Exercise difficulty indicators
+
+### 2.3 Workout Flow Improvements
+- [ ] **2.3.1** Rest timer between sets
+- [ ] **2.3.2** Workout session summary
+- [ ] **2.3.3** Progress celebration animations
+- [ ] **2.3.4** Quick workout restart option
+
+---
+
+## Phase 3: Progress Tracking & Analytics 🚀
+
+### 3.1 Progress Tracking
 - [ ] Create PersonalRecord entity for 1RM tracking
 - [ ] Implement weight progression suggestions
 - [ ] Add exercise history graphs
+- [ ] Weekly/monthly progress reports
 
-### 2.2 Custom Workouts
+### 3.2 Custom Workouts
 - [ ] Allow users to create custom templates
 - [ ] Exercise substitution system
 - [ ] Workout sharing functionality
+- [ ] Template import/export
 
-### 2.3 Analytics & Insights
-- [ ] Weekly/monthly progress reports
-- [ ] Muscle group balance analysis
+### 3.3 Analytics & Insights
 - [ ] Training volume analytics
+- [ ] Muscle group balance analysis
+- [ ] Workout consistency tracking
+- [ ] Performance trend analysis
 
 ---
 
-## Phase 3: Production Ready 🏆
+## Phase 4: Production Ready 🏆
 
-### 3.1 Performance Optimization
+### 4.1 Performance Optimization
 - [ ] Database indexing optimization
 - [ ] LazyColumn performance improvements
 - [ ] Background data sync
+- [ ] Memory usage optimization
 
-### 3.2 User Experience
+### 4.2 User Experience Polish
 - [ ] Onboarding flow
 - [ ] Exercise video/animation support
 - [ ] Dark mode theme improvements
+- [ ] Accessibility improvements
 
-### 3.3 Data Management
+### 4.3 Data Management
 - [ ] Export/import functionality
 - [ ] Cloud backup integration
 - [ ] Data migration between devices
+- [ ] Offline-first architecture
 
 ---
 
-## Implementation Priority 🎯
+## Development Notes 📝
 
-### Sprint 1 (Week 1): Foundation ✅ **COMPLETED**
-1. **1.1.1** - Enhance Exercise Entity ⭐ ✅ **DONE**
-2. **1.1.2** - Database Migration 5→6 ✅ **DONE**
-3. **1.1.3** - Update exercise data with metadata ✅ **DONE**
+### Recently Fixed Issues ✅
+- Cross-exercise set contamination (sets now properly isolated per exercise)
+- Timer functionality working correctly per set
+- Database foreign key constraints resolved
+- Set progression logic working properly
+- Exercise detail screen navigation fixed
 
-### Sprint 2 (Week 2): Templates
-4. **1.2.1** - WorkoutTemplate entity
-5. **1.2.2** - TemplateExercise junction
-6. **1.2.3** - Template DAOs
+### Current Technical Debt
+- Both day-based and template-based systems running in parallel
+- Manual template selection UI not implemented
+- Some hardcoded workout logic still present
 
-### Sprint 3 (Week 3): Integration
-7. **1.3.1** - Template-based repository
-8. **1.3.2** - Template population
-9. **1.3.3** - ViewModel updates
+### Next Immediate Tasks
+1. **Template Selection UI** - Allow users to manually choose templates
+2. **Exercise Enhancement** - Show rich metadata in UI
+3. **Workout Flow Polish** - Improve user experience during workouts
 
----
-
-## Week 1 Sprint 1 - Completed Features 🎯
-
-### ✅ Enhanced Exercise Entity
-- **Before**: Simple Exercise entity with only `id`, `name`, `isCompound`
-- **After**: Rich Exercise entity with 8 additional fields:
-  - `primaryMuscle`: Main muscle group targeted
-  - `secondaryMuscles`: Secondary muscles (comma separated)
-  - `equipment`: Required equipment type
-  - `difficulty`: Beginner/Intermediate/Advanced
-  - `instructions`: Step-by-step exercise guide
-  - `tips`: Form tips and common mistakes
-  - `category`: Push/Pull/Legs classification
-
-### ✅ Database Migration v5 → v6
-- **Migration**: Properly implemented Room database migration
-- **Backward Compatibility**: Existing data preserved during migration
-- **New Columns**: All new fields added with appropriate defaults
-- **Build Status**: ✅ Build successful, no compilation errors
-
-### ✅ Rich Exercise Data Library
-- **New File**: Created `ExerciseData.kt` with comprehensive metadata
-- **All 34 Exercises**: Each exercise now includes:
-  - Detailed step-by-step instructions
-  - Form tips and safety advice
-  - Muscle group classifications
-  - Equipment requirements
-  - Difficulty levels
-- **Database Integration**: Database now uses the enhanced exercise data
-
-## Next Steps - Week 2 Sprint 2 🚀
-Ready to start **Sprint 2** with workout templates system:
-1. Create `WorkoutTemplate` entity for flexible workout creation
-2. Create `TemplateExercise` junction table for template-exercise relationships
-3. Build corresponding DAOs for the new entities
+### Architecture Status
+- ✅ **Database Layer**: Complete with template system
+- ✅ **Repository Layer**: Full template support implemented  
+- ✅ **ViewModel Layer**: Template integration complete
+- 🔄 **UI Layer**: Basic template support, selection UI pending
+- 🔄 **User Experience**: Core functionality working, polish needed
