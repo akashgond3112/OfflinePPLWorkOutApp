@@ -44,7 +44,18 @@ class ExerciseDetailViewModel(
     private val _isExerciseCompleted = MutableStateFlow(false)
     val isExerciseCompleted: StateFlow<Boolean> = _isExerciseCompleted.asStateFlow()
 
+    // 🚀 NEW: Rest timer functionality
+    private val _restTimer = MutableStateFlow(0L)
+    val restTimer: StateFlow<Long> = _restTimer.asStateFlow()
+
+    private val _isRestActive = MutableStateFlow(false)
+    val isRestActive: StateFlow<Boolean> = _isRestActive.asStateFlow()
+
+    private val _totalRestTime = MutableStateFlow(0L)
+    val totalRestTime: StateFlow<Long> = _totalRestTime.asStateFlow()
+
     private var timerJob: Job? = null
+    private var restTimerJob: Job? = null
     private var currentSetId: Int? = null
 
     init {
@@ -107,8 +118,14 @@ class ExerciseDetailViewModel(
     }
 
     fun startSetTimer(setIndex: Int) {
+        println("🚀 REST DEBUG: startSetTimer called for set ${setIndex + 1}")
+
         // Stop any currently running timer
         stopAllTimers()
+
+        // 🚀 NEW: Stop rest timer when starting a new set
+        println("🚀 REST DEBUG: Stopping rest timer before starting new set")
+        stopRestTimer()
 
         // Start timer for this set
         val currentTime = System.currentTimeMillis()
@@ -119,6 +136,8 @@ class ExerciseDetailViewModel(
         )
         _setTimers.value = updatedTimers
         _currentRunningSet.value = setIndex
+
+        println("🚀 REST DEBUG: Set ${setIndex + 1} timer started at $currentTime")
 
         // Store the database set ID for persistence
         viewModelScope.launch {
@@ -140,7 +159,14 @@ class ExerciseDetailViewModel(
         val timer = updatedTimers.getOrNull(setIndex) ?: return
 
         if (timer.isRunning) {
-            val finalElapsedTime = timer.elapsedTime + (System.currentTimeMillis() - timer.startTime)
+            // 🔧 FIXED: Use current elapsed time directly, don't double-count
+            val finalElapsedTime = System.currentTimeMillis() - timer.startTime
+
+            println("🛑 STOP TIMER DEBUG: Set ${setIndex + 1}")
+            println("🛑 STOP TIMER DEBUG: timer.elapsedTime = ${timer.elapsedTime}ms")
+            println("🛑 STOP TIMER DEBUG: startTime = ${timer.startTime}")
+            println("🛑 STOP TIMER DEBUG: currentTime = ${System.currentTimeMillis()}")
+            println("🛑 STOP TIMER DEBUG: calculated elapsed = ${finalElapsedTime}ms (${finalElapsedTime / 1000}s)")
 
             updatedTimers[setIndex] = timer.copy(
                 isRunning = false,
@@ -150,6 +176,9 @@ class ExerciseDetailViewModel(
             _setTimers.value = updatedTimers
             _currentRunningSet.value = null
             timerJob?.cancel()
+
+            // 🚀 NEW: Start rest timer when set is completed
+            startRestTimer()
 
             // Persist timer to database
             currentSetId?.let { setId ->
@@ -170,6 +199,8 @@ class ExerciseDetailViewModel(
                     // Check if all sets are completed
                     if (completedCount == workoutEntry.sets) {
                         _isExerciseCompleted.value = true
+                        // Stop rest timer if all sets are completed
+                        stopRestTimer()
                     } else {
                         // Advance to next set - find the first incomplete set
                         val nextIncompleteSetIndex = _setTimers.value.indexOfFirst { !it.isCompleted }
@@ -226,6 +257,64 @@ class ExerciseDetailViewModel(
         updateTotalExerciseTime()
     }
 
+    // 🚀 NEW: Rest timer functionality
+    private fun startRestTimer() {
+        println("🚀 REST DEBUG: startRestTimer() called")
+        println("🚀 REST DEBUG: Current _isRestActive state: ${_isRestActive.value}")
+
+        // Don't start a new rest timer if one is already active
+        if (_isRestActive.value) {
+            println("🚀 REST DEBUG: Rest timer already active, skipping start")
+            return
+        }
+
+        println("🚀 REST DEBUG: Setting _isRestActive to true")
+        _isRestActive.value = true
+        val restStartTime = System.currentTimeMillis()
+        println("🚀 REST DEBUG: Rest timer start time: $restStartTime")
+
+        // Start the rest timer job
+        restTimerJob = viewModelScope.launch {
+            var elapsedRestTime = 0L
+            println("🚀 REST DEBUG: Rest timer coroutine started")
+
+            while (_isRestActive.value) {
+                delay(1000) // Update every second
+                elapsedRestTime += 1000
+                _restTimer.value = elapsedRestTime
+
+                println("⏱️ REST TIMER: ${elapsedRestTime / 1000}s (Live) - _restTimer.value = ${_restTimer.value}")
+            }
+            println("🚀 REST DEBUG: Rest timer coroutine ended")
+        }
+
+        println("🚀 REST TIMER STARTED - Job created: ${restTimerJob != null}")
+    }
+
+    private fun stopRestTimer() {
+        println("🚀 REST DEBUG: stopRestTimer() called")
+        println("🚀 REST DEBUG: Current _isRestActive state: ${_isRestActive.value}")
+
+        if (!_isRestActive.value) {
+            println("🚀 REST DEBUG: Rest timer not active, nothing to stop")
+            return
+        }
+
+        println("🚀 REST DEBUG: Setting _isRestActive to false")
+        _isRestActive.value = false
+
+        println("🚀 REST DEBUG: Cancelling rest timer job")
+        restTimerJob?.cancel()
+        restTimerJob = null
+
+        // Reset rest timer value
+        val previousValue = _restTimer.value
+        _restTimer.value = 0L
+        println("🚀 REST DEBUG: Reset _restTimer from ${previousValue}ms to ${_restTimer.value}ms")
+
+        println("⏹️ REST TIMER STOPPED")
+    }
+
     private fun stopAllTimers() {
         timerJob?.cancel()
         val updatedTimers = _setTimers.value.map { timer ->
@@ -241,20 +330,50 @@ class ExerciseDetailViewModel(
 
         if (timer.isRunning) {
             val currentTime = System.currentTimeMillis()
-            val elapsed = currentTime - timer.startTime + timer.elapsedTime
+            // 🔧 FIXED: Don't add previous elapsedTime - just calculate from start
+            val elapsed = currentTime - timer.startTime
             updatedTimers[setIndex] = timer.copy(elapsedTime = elapsed)
             _setTimers.value = updatedTimers
+
+            // 🔧 REMOVED: Don't update total time during live timer updates
+            // updateTotalExerciseTime() // This was causing live updates in top bar
+
+            // 🔧 ADDED: Force UI recomposition for live stopwatch display
+            println("⏱️ TIMER: Set ${setIndex + 1} - ${elapsed / 1000}s (Live)")
         }
     }
 
     private fun updateTotalExerciseTime() {
-        val totalTime = _setTimers.value.sumOf { it.elapsedTime }
+        // 🔧 FIXED: Only count completed sets for total time, not running timers
+        val completedSets = _setTimers.value.filter { it.isCompleted }
+
+        println("🕐 TOTAL TIME DEBUG: Calculating total exercise time...")
+        println("🕐 TOTAL TIME DEBUG: Found ${completedSets.size} completed sets:")
+
+        completedSets.forEachIndexed { index, set ->
+            println("🕐 TOTAL TIME DEBUG: Set ${index + 1}: ${set.elapsedTime}ms (${set.elapsedTime / 1000}s)")
+        }
+
+        val setTime = completedSets.sumOf { it.elapsedTime }
+
+        // 🚀 NEW: Include accumulated rest time in total
+        val restTime = _totalRestTime.value
+        val totalTime = setTime + restTime
+
+        println("🕐 TOTAL TIME DEBUG: Sum of all completed sets: ${setTime}ms (${setTime / 1000}s)")
+        println("🕐 TOTAL TIME DEBUG: Total accumulated rest time: ${restTime}ms (${restTime / 1000}s)")
+        println("🕐 TOTAL TIME DEBUG: Combined total time: ${totalTime}ms (${totalTime / 1000}s)")
+        println("🕐 TOTAL TIME DEBUG: Setting _totalExerciseTime to: ${totalTime}")
+
         _totalExerciseTime.value = totalTime
+
+        println("🕐 TOTAL TIME DEBUG: _totalExerciseTime.value is now: ${_totalExerciseTime.value}")
     }
 
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        restTimerJob?.cancel() // 🚀 NEW: Clean up rest timer job
     }
 }
 
