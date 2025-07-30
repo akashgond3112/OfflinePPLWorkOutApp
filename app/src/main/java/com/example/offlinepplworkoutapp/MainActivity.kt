@@ -76,6 +76,7 @@ fun MainScreen(
     var showDebugMenu by remember { mutableStateOf(false) }
     var selectedExercise by remember { mutableStateOf<WorkoutEntryWithExercise?>(null) }
     var showResetConfirmation by remember { mutableStateOf(false) }
+    var showTemplateSelection by remember { mutableStateOf(false) }
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val coroutineScope = rememberCoroutineScope()
 
@@ -161,24 +162,41 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        if (selectedExercise != null) {
-            // Show Exercise Detail Screen
-            ExerciseDetailScreen(
-                workoutEntry = selectedExercise!!,
-                repository = repository,
-                onBackClick = { selectedExercise = null },
-                onSaveChanges = { sets, reps, isCompleted ->
-                    viewModel.updateExercise(selectedExercise!!.id, sets, reps, isCompleted)
-                }
-            )
-        } else {
-            // Show Daily Workout Screen
-            DailyWorkoutScreen(
-                viewModel = viewModel,
-                repository = repository,
-                onExerciseClick = { exercise -> selectedExercise = exercise },
-                modifier = Modifier.padding(innerPadding)
-            )
+        when {
+            showTemplateSelection -> {
+                // Show Template Selection Screen
+                com.example.offlinepplworkoutapp.ui.screens.TemplateSelectionScreen(
+                    repository = repository,
+                    selectedDate = viewModel.currentDate.collectAsState().value,
+                    onTemplateSelected = { template ->
+                        viewModel.selectTemplate(template)
+                        viewModel.createWorkoutFromSelectedTemplate()
+                        showTemplateSelection = false
+                    },
+                    onBackClick = { showTemplateSelection = false }
+                )
+            }
+            selectedExercise != null -> {
+                // Show Exercise Detail Screen
+                ExerciseDetailScreen(
+                    workoutEntry = selectedExercise!!,
+                    repository = repository,
+                    onBackClick = { selectedExercise = null },
+                    onSaveChanges = { sets, reps, isCompleted ->
+                        viewModel.updateExercise(selectedExercise!!.id, sets, reps, isCompleted)
+                    }
+                )
+            }
+            else -> {
+                // Show Daily Workout Screen
+                DailyWorkoutScreen(
+                    viewModel = viewModel,
+                    repository = repository,
+                    onExerciseClick = { exercise -> selectedExercise = exercise },
+                    onTemplateSelectionClick = { showTemplateSelection = true },
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
         }
 
         // Debug day selector dialog
@@ -211,7 +229,8 @@ fun DailyWorkoutScreen(
     viewModel: DailyWorkoutViewModel,
     repository: WorkoutRepository,
     modifier: Modifier = Modifier,
-    onExerciseClick: (WorkoutEntryWithExercise) -> Unit = {}
+    onExerciseClick: (WorkoutEntryWithExercise) -> Unit = {},
+    onTemplateSelectionClick: () -> Unit = {}
 ) {
 
     val todaysWorkout by viewModel.todaysWorkout.collectAsState()
@@ -315,15 +334,40 @@ fun DailyWorkoutScreen(
                     onStartWorkout = {
                         println("🔥 UI: Start Workout button clicked!")
                         viewModel.createTodaysWorkout()
-                    }
+                    },
+                    onTemplateSelection = onTemplateSelectionClick
                 )
             }
         } else {
-            Text(
-                text = "Exercises: ${todaysWorkout.size}",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            // Exercise list header with template selection option
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Exercises: ${todaysWorkout.size}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                // Template selection button
+                OutlinedButton(
+                    onClick = onTemplateSelectionClick,
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = "Change Template",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Change Template",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
 
             LazyColumn {
                 items(todaysWorkout) { workoutEntry ->
@@ -926,7 +970,8 @@ fun DebugDaySelector(
 @Composable
 fun StartWorkoutScreen(
     workoutType: String,
-    onStartWorkout: () -> Unit
+    onStartWorkout: () -> Unit,
+    onTemplateSelection: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -966,13 +1011,14 @@ fun StartWorkoutScreen(
                 )
 
                 Text(
-                    text = "Tap the button below to create today's workout and start training!",
+                    text = "Choose how you want to start your workout:",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 32.dp)
                 )
 
+                // Default workout button
                 Button(
                     onClick = onStartWorkout,
                     modifier = Modifier
@@ -993,6 +1039,39 @@ fun StartWorkoutScreen(
                         fontWeight = FontWeight.Bold
                     )
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Template selection button
+                OutlinedButton(
+                    onClick = onTemplateSelection,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = "Choose Template",
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(
+                        text = "Choose Different Workout",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "💡 Use 'Choose Different Workout' to pick from Push, Pull, or Legs templates",
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
             }
         }
     }
