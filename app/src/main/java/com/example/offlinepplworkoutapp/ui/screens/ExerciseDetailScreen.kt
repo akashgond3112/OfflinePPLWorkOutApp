@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
@@ -29,10 +28,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
+import kotlinx.coroutines.delay
 import com.example.offlinepplworkoutapp.ui.theme.*
 import com.example.offlinepplworkoutapp.ui.viewmodel.ExerciseDetailViewModel
 import com.example.offlinepplworkoutapp.ui.viewmodel.ExerciseDetailViewModelFactory
-import java.util.*
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,6 +56,10 @@ fun ExerciseDetailScreen(
     val completedSets by viewModel.completedSets.collectAsState()
     val isExerciseCompleted by viewModel.isExerciseCompleted.collectAsState()
 
+    // 🚀 NEW: Rest timer state
+    val restTimer by viewModel.restTimer.collectAsState()
+    val isRestActive by viewModel.isRestActive.collectAsState()
+
     val originalCompletionStatus = remember { workoutEntry.isCompleted }
 
     Scaffold(
@@ -72,7 +76,9 @@ fun ExerciseDetailScreen(
                             )
                         )
                         Text(
-                            text = "Sets: $completedSets/${workoutEntry.sets} • Total: ${formatTime(totalExerciseTime)}",
+                            text = "Sets: $completedSets/${workoutEntry.sets} • Total: ${formatTime(totalExerciseTime / 1000)}".also {
+                                println("🕐 UI DEBUG: Displaying total time - Raw: ${totalExerciseTime}ms, Converted: ${totalExerciseTime / 1000}s, Formatted: ${formatTime(totalExerciseTime / 1000)}")
+                            },
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontSize = 14.sp,
                                 color = TextSecondary
@@ -109,6 +115,20 @@ fun ExerciseDetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 🚀 NEW: Rest timer display at top of screen
+            item {
+                AnimatedVisibility(
+                    visible = isRestActive,
+                    enter = slideInVertically() + fadeIn(),
+                    exit = slideOutVertically() + fadeOut()
+                ) {
+                    RestTimerCard(
+                        restTime = restTimer / 1000, // Convert milliseconds to seconds
+                        isActive = isRestActive
+                    )
+                }
+            }
+
             // Exercise completion status with animation
             item {
                 AnimatedVisibility(
@@ -127,7 +147,7 @@ fun ExerciseDetailScreen(
                     setNumber = index + 1,
                     totalSets = workoutEntry.sets,
                     targetReps = workoutEntry.reps,
-                    setTimer = setTimer.elapsedTime,
+                    setTimer = setTimer.elapsedTime / 1000, // 🔧 FIXED: Convert milliseconds to seconds
                     isCurrentSet = currentRunningSet == index,
                     isCompleted = setTimer.isCompleted,
                     isActive = index == activeSetIndex,
@@ -371,27 +391,13 @@ fun ModernSetTimerCard(
                         )
                     }
                     isCurrentSet -> {
-                        // Active set - show stop button
+                        // 🔧 FIXED: Simplified workflow - only Stop button that auto-completes the set
                         Button(
-                            onClick = onStopTimer,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = WarningOrange
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Stop",
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Stop Set")
-                        }
-
-                        Button(
-                            onClick = onCompleteSet,
-                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                onStopTimer() // Stop timer and auto-complete the set
+                                onCompleteSet() // Automatically mark as completed
+                            },
+                            modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = SuccessGreen
                             ),
@@ -399,11 +405,11 @@ fun ModernSetTimerCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Check,
-                                contentDescription = "Complete",
+                                contentDescription = "Stop and Complete",
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Mark as Done")
+                            Text("Complete Set")
                         }
                     }
                     else -> {
@@ -444,10 +450,37 @@ fun TimerDisplay(
         else -> TextSecondary
     }
 
+    // 🔧 PROPER STOPWATCH: Start from stored time and count up properly
+    var displayTime by remember(time) { mutableStateOf(time) }
+
+    // Track when timer starts to calculate elapsed time properly
+    val startTimeRef = remember { mutableStateOf(0L) }
+
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            // Record the actual start time when timer becomes active
+            startTimeRef.value = System.currentTimeMillis()
+
+            while (isActive) {
+                // Calculate elapsed seconds since timer started
+                val elapsedMs = System.currentTimeMillis() - startTimeRef.value
+                val elapsedSeconds = elapsedMs / 1000
+
+                // Display = stored time + elapsed time
+                displayTime = time + elapsedSeconds
+
+                delay(1000) // Update every second
+            }
+        } else {
+            // When not active, show the stored time from database
+            displayTime = time
+        }
+    }
+
     Text(
-        text = formatTime(time),
+        text = formatTime(displayTime),
         style = MaterialTheme.typography.titleLarge.copy(
-            fontSize = 18.sp,
+            fontSize = if (isActive) 20.sp else 18.sp,
             fontWeight = FontWeight.Bold,
             color = textColor
         )
@@ -463,5 +496,60 @@ private fun formatTime(timeInSeconds: Long): String {
         String.format("%02d:%02d:%02d", hours, minutes, seconds)
     } else {
         String.format("%02d:%02d", minutes, seconds)
+    }
+}
+
+// 🚀 NEW: Rest Timer Card Component
+@Composable
+fun RestTimerCard(
+    restTime: Long,
+    isActive: Boolean
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(6.dp, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(
+            containerColor = AmberAccent.copy(alpha = 0.1f)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Rest icon - using a pause/timer-like icon
+                Icon(
+                    imageVector = Icons.Default.PlayArrow, // We'll use this as a rest indicator
+                    contentDescription = "Rest",
+                    tint = AmberAccent,
+                    modifier = Modifier.size(24.dp)
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Text(
+                    text = "Rest Timer",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                )
+            }
+
+            // Rest time display with prominent styling
+            Text(
+                text = formatTime(restTime),
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = AmberAccent,
+                    fontSize = 24.sp
+                )
+            )
+        }
     }
 }
