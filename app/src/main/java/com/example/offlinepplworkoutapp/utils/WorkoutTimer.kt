@@ -31,17 +31,12 @@ class WorkoutTimer {
     private fun startTimerUpdates() {
         timerJob = scope.launch {
             try {
-                while (isActive) { // Use isActive instead of custom isRunning flag
+                while (isActive && _isTimerRunning.value) {
                     val elapsed = ((System.currentTimeMillis() - startTime) / 1000).toInt()
                     _elapsedSeconds.value = elapsed
 
-                    // More precise timing - calculate next update time
-                    val nextUpdateTime = startTime + ((elapsed + 1) * 1000)
-                    val delayTime = nextUpdateTime - System.currentTimeMillis()
-
-                    if (delayTime > 0) {
-                        delay(delayTime)
-                    }
+                    // Simple 1-second delay for accurate counting
+                    delay(1000)
                 }
             } catch (e: CancellationException) {
                 // Timer was cancelled, this is expected
@@ -110,9 +105,18 @@ class WorkoutTimer {
         scope.cancel()
     }
 
+    /**
+     * 🔧 FIXED: Proper HH:MM:SS format with proper hour handling
+     */
     fun formatTime(seconds: Int): String {
-        val minutes = seconds / 60
+        val hours = seconds / 3600
+        val minutes = (seconds % 3600) / 60
         val remainingSeconds = seconds % 60
-        return String.format("%d:%02d", minutes, remainingSeconds)
+
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, remainingSeconds)
+        } else {
+            String.format("%02d:%02d", minutes, remainingSeconds)
+        }
     }
 }
