@@ -32,6 +32,8 @@ import kotlinx.coroutines.delay
 import com.example.offlinepplworkoutapp.ui.theme.*
 import com.example.offlinepplworkoutapp.ui.viewmodel.ExerciseDetailViewModel
 import com.example.offlinepplworkoutapp.ui.viewmodel.ExerciseDetailViewModelFactory
+import com.example.offlinepplworkoutapp.ui.components.SetDataEntryDialog
+import com.example.offlinepplworkoutapp.ui.components.SetPerformanceData
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,6 +61,10 @@ fun ExerciseDetailScreen(
     // 🚀 NEW: Rest timer state
     val restTimer by viewModel.restTimer.collectAsState()
     val isRestActive by viewModel.isRestActive.collectAsState()
+
+    // 🚀 NEW: Phase 2.1.2 - Set data entry dialog state
+    val showSetDataDialog by viewModel.showSetDataDialog.collectAsState()
+    val pendingSetData by viewModel.pendingSetData.collectAsState()
 
     val originalCompletionStatus = remember { workoutEntry.isCompleted }
 
@@ -157,6 +163,24 @@ fun ExerciseDetailScreen(
                     onCompleteSet = { viewModel.completeSet(index) }
                 )
             }
+        }
+    }
+
+    // 🚀 NEW: Phase 2.1.2 - Set Data Entry Dialog
+    if (showSetDataDialog) {
+        pendingSetData?.let { (setIndex, _) ->
+            SetDataEntryDialog(
+                setNumber = setIndex + 1,
+                exerciseName = workoutEntry.exerciseName,
+                onDataEntered = { performanceData ->
+                    viewModel.submitSetPerformanceData(
+                        repsPerformed = performanceData.repsPerformed,
+                        weightUsed = performanceData.weightUsed
+                    )
+                },
+                isRestTimerRunning = isRestActive,
+                restTimeFormatted = formatTime(restTimer / 1000)
+            )
         }
     }
 }
@@ -391,11 +415,10 @@ fun ModernSetTimerCard(
                         )
                     }
                     isCurrentSet -> {
-                        // 🔧 FIXED: Simplified workflow - only Stop button that auto-completes the set
+                        // 🚀 NEW: Phase 2.1.2 - Just stop timer, dialog will handle completion
                         Button(
                             onClick = {
-                                onStopTimer() // Stop timer and auto-complete the set
-                                onCompleteSet() // Automatically mark as completed
+                                onStopTimer() // This will show the data entry dialog
                             },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
@@ -405,7 +428,7 @@ fun ModernSetTimerCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Check,
-                                contentDescription = "Stop and Complete",
+                                contentDescription = "Complete Set",
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
