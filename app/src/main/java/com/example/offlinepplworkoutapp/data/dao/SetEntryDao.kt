@@ -25,6 +25,23 @@ interface SetEntryDao {
     @Query("UPDATE set_entries SET isCompleted = :isCompleted, elapsedTimeSeconds = :elapsedTimeSeconds, completedAt = :completedAt WHERE id = :setId")
     suspend fun updateSetProgress(setId: Int, isCompleted: Boolean, elapsedTimeSeconds: Int, completedAt: Long?)
 
+    // 🚀 NEW: Phase 2.1.1 - Methods for handling set performance data
+    @Query("UPDATE set_entries SET isCompleted = :isCompleted, elapsedTimeSeconds = :elapsedTimeSeconds, completedAt = :completedAt, reps_performed = :repsPerformed, weight_used = :weightUsed WHERE id = :setId")
+    suspend fun updateSetProgressWithPerformanceData(
+        setId: Int,
+        isCompleted: Boolean,
+        elapsedTimeSeconds: Int,
+        completedAt: Long?,
+        repsPerformed: Int?,
+        weightUsed: Float?
+    )
+
+    @Query("UPDATE set_entries SET reps_performed = :repsPerformed, weight_used = :weightUsed WHERE id = :setId")
+    suspend fun updateSetPerformanceData(setId: Int, repsPerformed: Int?, weightUsed: Float?)
+
+    @Query("SELECT * FROM set_entries WHERE id = :setId")
+    suspend fun getSetById(setId: Int): SetEntry?
+
     @Query("DELETE FROM set_entries WHERE workout_entry_id = :workoutEntryId")
     suspend fun deleteByWorkoutEntryId(workoutEntryId: Int)
 
