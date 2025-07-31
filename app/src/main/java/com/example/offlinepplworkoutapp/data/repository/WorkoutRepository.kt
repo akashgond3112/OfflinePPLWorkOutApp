@@ -327,9 +327,38 @@ class WorkoutRepository(
         setEntryDao.updateSetProgress(setId, isCompleted, elapsedTimeSeconds, completedAt)
     }
 
+    // 🚀 NEW: Phase 2.1.1 - Methods for handling set performance data
+    suspend fun updateSetProgressWithPerformanceData(
+        setId: Int,
+        isCompleted: Boolean,
+        elapsedTimeSeconds: Int,
+        repsPerformed: Int?,
+        weightUsed: Float?
+    ) {
+        val completedAt = if (isCompleted) System.currentTimeMillis() else null
+        setEntryDao.updateSetProgressWithPerformanceData(
+            setId = setId,
+            isCompleted = isCompleted,
+            elapsedTimeSeconds = elapsedTimeSeconds,
+            completedAt = completedAt,
+            repsPerformed = repsPerformed,
+            weightUsed = weightUsed
+        )
+        println("🏋️ REPO: Updated set $setId with performance data - reps: $repsPerformed, weight: $weightUsed")
+    }
+
+    suspend fun updateSetPerformanceDataOnly(setId: Int, repsPerformed: Int?, weightUsed: Float?) {
+        setEntryDao.updateSetPerformanceData(setId, repsPerformed, weightUsed)
+        println("🏋️ REPO: Updated performance data for set $setId - reps: $repsPerformed, weight: $weightUsed")
+    }
+
+    suspend fun getSetById(setId: Int): SetEntry? {
+        return setEntryDao.getSetById(setId)
+    }
+
     suspend fun createSetsForWorkoutEntry(workoutEntryId: Int, totalSets: Int) {
         val sets = (1..totalSets).map { setNumber ->
-            com.example.offlinepplworkoutapp.data.entity.SetEntry(
+            SetEntry(
                 workoutEntryId = workoutEntryId,
                 setNumber = setNumber
             )
