@@ -44,19 +44,30 @@ class ExerciseDetailViewModel(
     private val _isExerciseCompleted = MutableStateFlow(false)
     val isExerciseCompleted: StateFlow<Boolean> = _isExerciseCompleted.asStateFlow()
 
-    // 🚀 NEW: Rest timer functionality
+    // 🚀 FIXED: Enhanced rest timer functionality with proper time tracking
     private val _restTimer = MutableStateFlow(0L)
     val restTimer: StateFlow<Long> = _restTimer.asStateFlow()
 
     private val _isRestActive = MutableStateFlow(false)
     val isRestActive: StateFlow<Boolean> = _isRestActive.asStateFlow()
 
+    // 🔧 NEW: Track accumulated rest time for total exercise time calculation
     private val _totalRestTime = MutableStateFlow(0L)
     val totalRestTime: StateFlow<Long> = _totalRestTime.asStateFlow()
+
+    // 🚀 NEW: Phase 2.1.2 - Set data entry dialog state
+    private val _showSetDataDialog = MutableStateFlow(false)
+    val showSetDataDialog: StateFlow<Boolean> = _showSetDataDialog.asStateFlow()
+
+    private val _pendingSetData = MutableStateFlow<Pair<Int, Int>?>(null) // (setIndex, setId)
+    val pendingSetData: StateFlow<Pair<Int, Int>?> = _pendingSetData.asStateFlow()
 
     private var timerJob: Job? = null
     private var restTimerJob: Job? = null
     private var currentSetId: Int? = null
+
+    // 🔧 NEW: Track current rest session start time
+    private var restStartTime: Long = 0L
 
     init {
         loadSetsFromDatabase()
@@ -107,7 +118,8 @@ class ExerciseDetailViewModel(
 
                 // 🔧 FIX: Set the active set index to the first incomplete set
                 val firstIncompleteSetIndex = setTimers.indexOfFirst { !it.isCompleted }
-                _activeSetIndex.value = if (firstIncompleteSetIndex != -1) firstIncompleteSetIndex else 0
+                _activeSetIndex.value =
+                    if (firstIncompleteSetIndex != -1) firstIncompleteSetIndex else 0
                 println("🔍 DETAIL VM: Set active set index to: ${_activeSetIndex.value}")
 
                 updateTotalExerciseTime()
@@ -170,91 +182,90 @@ class ExerciseDetailViewModel(
 
             updatedTimers[setIndex] = timer.copy(
                 isRunning = false,
-                elapsedTime = finalElapsedTime,
-                isCompleted = true  // Mark as completed when stopping
+                elapsedTime = finalElapsedTime
+                // 🚀 CHANGED: Don't mark as completed here - wait for user data entry
             )
             _setTimers.value = updatedTimers
             _currentRunningSet.value = null
             timerJob?.cancel()
 
-            // 🚀 NEW: Start rest timer when set is completed
-            startRestTimer()
-
-            // Persist timer to database
+            // 🚀 NEW: Phase 2.1.2 - Show data entry dialog instead of immediate completion
             currentSetId?.let { setId ->
-                viewModelScope.launch {
-                    repository.updateSetProgress(
-                        setId = setId,
-                        isCompleted = true,  // Mark as completed in the database
-                        elapsedTimeSeconds = (finalElapsedTime / 1000).toInt()
-                    )
+                println("🎯 DIALOG: Showing set data entry dialog for set ${setIndex + 1}")
+                _pendingSetData.value = Pair(setIndex, setId)
+                _showSetDataDialog.value = true
 
-                    // Update exercise completion status
-                    repository.updateExerciseCompletionFromSets(workoutEntry.id)
-
-                    // Update local completed sets count
-                    val completedCount = _setTimers.value.count { it.isCompleted }
-                    _completedSets.value = completedCount
-
-                    // Check if all sets are completed
-                    if (completedCount == workoutEntry.sets) {
-                        _isExerciseCompleted.value = true
-                        // Stop rest timer if all sets are completed
-                        stopRestTimer()
-                    } else {
-                        // Advance to next set - find the first incomplete set
-                        val nextIncompleteSetIndex = _setTimers.value.indexOfFirst { !it.isCompleted }
-                        if (nextIncompleteSetIndex != -1) {
-                            _activeSetIndex.value = nextIncompleteSetIndex
-                            println("🔍 DETAIL VM: Advanced to next set index: $nextIncompleteSetIndex")
-                        }
-                    }
-                }
+                // 🚀 IMPORTANT: Start rest timer while user enters data
+                startRestTimer()
             }
-
-            updateTotalExerciseTime()
         }
     }
 
-    fun completeSet(setIndex: Int) {
-        val updatedTimers = _setTimers.value.toMutableList()
-        val timer = updatedTimers.getOrNull(setIndex) ?: return
+    // 🚀 NEW: Phase 2.1.2 - Handle set performance data submission
+    fun submitSetPerformanceData(repsPerformed: Int, weightUsed: Float) {
+        val pendingData = _pendingSetData.value ?: return
+        val (setIndex, setId) = pendingData
 
-        updatedTimers[setIndex] = timer.copy(
-            isCompleted = true,
-            isRunning = false
-        )
-        _setTimers.value = updatedTimers
-        _currentRunningSet.value = null
-        timerJob?.cancel()
+        println("🎯 DIALOG: Submitting performance data - Set ${setIndex + 1}, Reps: $repsPerformed, Weight: $weightUsed")
 
-        // Persist completion to database
         viewModelScope.launch {
-            val dbSets = repository.getSetsForWorkoutEntrySync(workoutEntry.id)
-            val setEntry = dbSets.getOrNull(setIndex)
+            // Get the timer data for this set
+            val timer = _setTimers.value.getOrNull(setIndex)
+            val elapsedTimeSeconds = ((timer?.elapsedTime ?: 0L) / 1000).toInt()
 
-            setEntry?.let {
-                repository.updateSetProgress(
-                    setId = it.id,
-                    isCompleted = true,
-                    elapsedTimeSeconds = (timer.elapsedTime / 1000).toInt()
-                )
+            // Update database with completion and performance data
+            repository.updateSetProgressWithPerformanceData(
+                setId = setId,
+                isCompleted = true,
+                elapsedTimeSeconds = elapsedTimeSeconds,
+                repsPerformed = repsPerformed,
+                weightUsed = weightUsed
+            )
 
-                // Check if all sets are completed and update exercise
-                repository.updateExerciseCompletionFromSets(workoutEntry.id)
+            // Update local state to mark set as completed
+            val updatedTimers = _setTimers.value.toMutableList()
+            updatedTimers[setIndex] = updatedTimers[setIndex].copy(isCompleted = true)
+            _setTimers.value = updatedTimers
+
+            // Update exercise completion status
+            repository.updateExerciseCompletionFromSets(workoutEntry.id)
+
+            // Update local completed sets count
+            val completedCount = _setTimers.value.count { it.isCompleted }
+            _completedSets.value = completedCount
+
+            // Check if all sets are completed
+            if (completedCount == workoutEntry.sets) {
+                _isExerciseCompleted.value = true
+                // Stop rest timer if all sets are completed
+                stopRestTimer()
+            } else {
+                // Advance to next set - find the first incomplete set
+                val nextIncompleteSetIndex = _setTimers.value.indexOfFirst { !it.isCompleted }
+                if (nextIncompleteSetIndex != -1) {
+                    _activeSetIndex.value = nextIncompleteSetIndex
+                    println("🔍 DETAIL VM: Advanced to next set index: $nextIncompleteSetIndex")
+                }
             }
+
+            // Update total time calculation
+            updateTotalExerciseTime()
+
+            // Hide dialog and clear pending data
+            _showSetDataDialog.value = false
+            _pendingSetData.value = null
+
+            println("🎯 DIALOG: Set performance data saved successfully")
         }
+    }
 
-        // Update local state
-        val completedCount = updatedTimers.count { it.isCompleted }
-        _completedSets.value = completedCount
-
-        // Check if all sets are completed
-        if (completedCount == workoutEntry.sets) {
-            _isExerciseCompleted.value = true
-        }
-
-        updateTotalExerciseTime()
+    // 🚀 NEW: Phase 2.1.2 - Cancel dialog (if needed for future enhancements)
+    fun dismissSetDataDialog() {
+        // Note: As per requirements, there should be no cancel option
+        // This method is for potential future use or error handling
+        println("🎯 DIALOG: Dialog dismissed (should not happen in normal flow)")
+        _showSetDataDialog.value = false
+        _pendingSetData.value = null
     }
 
     // 🚀 NEW: Rest timer functionality
@@ -300,6 +311,15 @@ class ExerciseDetailViewModel(
             return
         }
 
+        // 🔧 CRITICAL FIX: Capture rest time before stopping
+        val completedRestTime = _restTimer.value
+        println("🚀 REST DEBUG: Capturing rest time: ${completedRestTime}ms (${completedRestTime / 1000}s)")
+
+        // 🔧 NEW: Add to total rest time accumulator
+        _totalRestTime.value += completedRestTime
+        println("🚀 REST DEBUG: Added ${completedRestTime}ms to total rest time")
+        println("🚀 REST DEBUG: Total accumulated rest time is now: ${_totalRestTime.value}ms (${_totalRestTime.value / 1000}s)")
+
         println("🚀 REST DEBUG: Setting _isRestActive to false")
         _isRestActive.value = false
 
@@ -307,12 +327,15 @@ class ExerciseDetailViewModel(
         restTimerJob?.cancel()
         restTimerJob = null
 
-        // Reset rest timer value
+        // Reset rest timer value (but keep the accumulated total)
         val previousValue = _restTimer.value
         _restTimer.value = 0L
         println("🚀 REST DEBUG: Reset _restTimer from ${previousValue}ms to ${_restTimer.value}ms")
 
-        println("⏹️ REST TIMER STOPPED")
+        // 🔧 NEW: Update total exercise time with new rest time
+        updateTotalExerciseTime()
+
+        println("⏹️ REST TIMER STOPPED - Rest time captured and added to total")
     }
 
     private fun stopAllTimers() {
@@ -374,6 +397,21 @@ class ExerciseDetailViewModel(
         super.onCleared()
         timerJob?.cancel()
         restTimerJob?.cancel() // 🚀 NEW: Clean up rest timer job
+    }
+
+    fun completeSet(index: Int) {
+        //TODO: Implement logic to mark a set as completed
+        println("🔧 COMPLETE SET: Marking set ${index + 1} as completed (not implemented yet)")
+        val updatedTimers = _setTimers.value.toMutableList()
+        if (index in updatedTimers.indices) {
+            updatedTimers[index] = updatedTimers[index].copy(isCompleted = true)
+            _setTimers.value = updatedTimers
+            _completedSets.value = _setTimers.value.count { it.isCompleted }
+            _isExerciseCompleted.value = _completedSets.value == workoutEntry.sets
+            println("🔧 COMPLETE SET: Set ${index + 1} marked as completed")
+        } else {
+            println("🔧 COMPLETE SET: Invalid set index $index, cannot mark as completed")
+        }
     }
 }
 
