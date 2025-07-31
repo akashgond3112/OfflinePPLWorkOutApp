@@ -28,5 +28,10 @@ data class SetEntry(
     val setNumber: Int, // 1, 2, 3, 4...
     val isCompleted: Boolean = false,
     val elapsedTimeSeconds: Int = 0, // Time spent on this specific set
-    val completedAt: Long? = null // Timestamp when set was completed
+    val completedAt: Long? = null, // Timestamp when set was completed
+    // 🚀 NEW: Phase 2.1.1 - Set performance data fields
+    @ColumnInfo(name = "reps_performed")
+    val repsPerformed: Int? = null, // Actual reps completed by user
+    @ColumnInfo(name = "weight_used")
+    val weightUsed: Float? = null // Weight used for this set (in user's preferred unit)
 )
