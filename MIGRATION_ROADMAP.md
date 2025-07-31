@@ -34,232 +34,240 @@ This document outlines the migration path from the current simplified architectu
 
 ---
 
-## Phase 1: Enhanced Exercise Library & Templates ✅ **COMPLETED**
+## Phase 1: Core Foundation ✅ **COMPLETED**
 
-### 1.1 Enhance Exercise Entity ✅ **COMPLETED**
-- [x] **1.1.1** Expanded Exercise entity with additional fields ✅
-- [x] **1.1.2** Created database migration (Version 5 → 6) ✅
-- [x] **1.1.3** Updated exercise data with rich metadata ✅
+### 1.1 Project Setup & Database ✅
+- [x] 1.1.1 Android project with Kotlin & Compose
+- [x] 1.1.2 Room database implementation
+- [x] 1.1.3 Entity models (WorkoutDay, Exercise, WorkoutEntry, SetEntry)
+- [x] 1.1.4 DAO implementations
+- [x] 1.1.5 Repository pattern
 
-### 1.2 Create Workout Templates System ✅ **COMPLETED**
-- [x] **1.2.1** Created WorkoutTemplate entity ✅
-- [x] **1.2.2** Created TemplateExercise junction entity ✅
-- [x] **1.2.3** Created corresponding DAOs (WorkoutTemplateDao, TemplateExerciseDao) ✅
-- [x] **1.2.4** Updated database schema (Version 6 → 7) ✅
-- [x] **1.2.5** Created PPL template data with 6 predefined templates ✅
+### 1.2 Basic UI & Navigation ✅
+- [x] 1.2.1 Material Design 3 theme
+- [x] 1.2.2 Navigation between screens
+- [x] 1.2.3 Daily workout view
+- [x] 1.2.4 Exercise list screen
+- [x] 1.2.5 Exercise detail screen
 
-### 1.3 Implement Template-Based Workout Creation ✅ **COMPLETED**
-**Goal**: Replace current day-based workout creation with template selection
+### 1.3 Workout Logic ✅
+- [x] 1.3.1 PPL schedule implementation (6-day rotation)
+- [x] 1.3.2 Rest day handling with background image
+- [x] 1.3.3 Workout day creation and exercise population
+- [x] 1.3.4 Set tracking and completion logic
+- [x] 1.3.5 Exercise progress tracking
 
-#### Tasks:
-- [x] **1.3.1** Update Repository to use templates ✅ **COMPLETED**
-  ```kotlin
-  suspend fun createWorkoutFromTemplate(templateId: Int, date: String): List<WorkoutEntry>
-  suspend fun createTodaysWorkoutFromTemplate(): Flow<List<WorkoutEntryWithExercise>>
-  fun getAvailableTemplates(): Flow<List<WorkoutTemplate>>
-  fun getTemplatesByCategory(category: String): Flow<List<WorkoutTemplate>>
-  ```
+### 1.4 Timer & Time Tracking ✅ **COMPLETED**
+- [x] 1.4.1 Individual set timers (start/stop functionality)
+- [x] 1.4.2 Total exercise time calculation
+- [x] 1.4.3 Set completion tracking
+- [x] 1.4.4 Sequential set unlocking
+- [x] 1.4.5 Rest period timer implementation ✅ **FIXED**
+- [x] 1.4.6 Proper time formatting (HH:MM:SS) ✅ **FIXED**
 
-- [x] **1.3.2** Populate templates in database on first run ✅ **COMPLETED**
-  - Created PPLTemplateData.kt with 6 predefined PPL workout templates
-  - Added template-exercise relationships with proper sets, reps, and rest periods
-  - Includes helper functions for day-based compatibility
-  - Auto-population on database creation
+---
 
-- [x] **1.3.3** Update ViewModel to use template-based creation ✅ **COMPLETED**
-  - Added `createWorkoutFromTemplate(templateId: Int, date: String)` method
-  - Integrated template selection logic
-  - Maintains backward compatibility with day-based creation
+## 🔧 **HOTFIX SECTION** ✅ **ALL COMPLETED**
 
-- [x] **1.3.4** Migrate from day-based to template-based workout creation ✅ **COMPLETED**
-  - Both systems working in parallel
-  - Template-based system handles PPL schedule automatically
-  - Legacy day-based methods preserved for compatibility
+### Timer & Time Display Issues ✅
+- [x] **HF-1**: Fix timer display format (was showing weird increments like 1,3,5,7...)
+  - ✅ FIXED: Timer now shows proper HH:MM:SS format
+  - ✅ FIXED: Standard stopwatch behavior (00:00:01, 00:00:02, etc.)
 
-- [x] **1.3.5** Update UI to show template selection ✅ **COMPLETED**
-  - Created comprehensive TemplateSelectionScreen with Material 3 design
-  - Added template cards with category colors (Push/Pull/Legs)
-  - Integrated difficulty indicators (Beginner/Intermediate/Advanced)
-  - Updated StartWorkoutScreen with dual options:
-    - "Start Today's Workout" (automatic template selection)
-    - "Choose Different Workout" (manual template selection)
-  - Implemented seamless navigation between screens
-  - Template metadata display (duration, exercise count, last used date)
-  - Added "Change Template" button to exercise list screen for easy access
+- [x] **HF-2**: Fix total exercise time calculation
+  - ✅ FIXED: Total time shows accurate values
+  - ✅ FIXED: Consistent time calculations including rest periods
+  - ✅ FIXED: Rest time properly captured and added to total
 
-### 1.4 Rest Timer Between Sets 🚀 **NEXT PRIORITY**
-**Goal**: Add automatic rest timer functionality to improve workout flow and timing accuracy
+- [x] **HF-3**: Remove "Mark as Done" button confusion
+  - ✅ FIXED: Simplified to Start → Stop → Completed flow
+  - ✅ FIXED: Clean UX with single action buttons
 
-#### Tasks:
-- [x] **1.4.1** Add rest timer UI component to ExerciseDetailScreen
-  - Position timer at top of screen with "Rest" label
-  - Use same visual design as set timers for consistency
-  - Show countdown format (e.g., "Rest: 02:30" counting down)
+- [x] **HF-4**: Fix total time live updates
+  - ✅ FIXED: Total time only updates when set completes
+  - ✅ FIXED: No more live updates during active sets
 
-- [] **1.4.2** Implement rest timer logic in ExerciseDetailViewModel
-  - Start rest timer automatically when user completes a set
-  - Stop rest timer when user starts next set
-  - Add rest time to total exercise time calculation
-  - Reset rest timer to 0 when next set begins
+### UI/UX Improvements ✅
+- [x] **HF-5**: Color scheme improvements (black text, yellow accents)
+- [x] **HF-6**: Exercise completion state persistence
+- [x] **HF-7**: Set counter display accuracy
+- [x] **HF-8**: Database reset functionality
 
-- [ ] **1.4.3** Update total time calculation to include rest periods
-  - Total time = completed set times + rest period times
-  - Ensure rest time is added to database for accurate tracking
-  - Update UI display to reflect total workout time including rest
+### Rest Timer Implementation ✅ **NEW - COMPLETED**
+- [x] **HF-9**: Complete rest timer functionality
+  - ✅ FIXED: Rest timer starts automatically after set completion
+  - ✅ FIXED: Rest time captured and added to total exercise time
+  - ✅ FIXED: Rest timer stops when next set starts
+  - ✅ FIXED: Total time = completed set times + accumulated rest time
+  - ✅ TESTED: Manual testing confirms expected behavior
 
-- [ ] **1.4.4** Add rest timer configuration
-  - Default rest periods based on exercise type (e.g., 90s for compounds, 60s for accessories)
-  - Allow manual rest timer adjustment (optional future enhancement)
-  - Rest timer visual feedback (color changes, progress indicators)
+---
 
-- [ ] **1.4.5** Enhance workout flow with rest timer
-  - Visual indication when rest period is complete
-  - Optional notification/vibration when rest is over
-  - Smooth transition from rest timer to next set timer
+## Phase 2: Set Data Collection & Management 🎯 **NEXT PRIORITY**
+
+### 2.1 Set Performance Data Entry ⭐ **NEW REQUIREMENT**
+- [x] 2.1.1 Add database fields for set performance data
+  - Add `reps_performed` (INT) to set_entries table
+  - Add `weight_used` (DECIMAL/FLOAT) to set_entries table
+  - Create database migration for new fields
+  - Update SetEntry entity and DAO methods
+
+- [x] 2.1.2 Set completion popup with data entry
+  - Create popup/dialog component for set data entry
+  - Two required text fields: "Reps Performed" and "Weight Used"
+  - Mandatory fields - no cancel button, only "ADD" button
+  - Popup appears when user completes a set (stops timer)
+  - Rest timer continues running in background during data entry
+
+- [ ] 2.1.3 Set data persistence and validation
+  - Save reps and weight data to database on popup submit
+  - Input validation (positive numbers, reasonable ranges)
+  - Update set completion flow to include data entry step
+  - Handle data persistence errors gracefully
+
+### 2.2 Set Data Editing & Management 🔄 **NEW REQUIREMENT**
+- [ ] 2.2.1 Edit completed set data
+  - Allow users to edit reps/weight after set completion
+  - Add edit button/icon to completed set cards
+  - Reopen data entry popup with pre-filled values
+  - Update database with edited values
+
+- [ ] 2.2.2 Dynamic set management
+  - Add "+" button to add extra sets to exercise
+  - Add "−" button to remove sets from exercise (if not completed)
+  - Update exercise completion logic for dynamic set counts
+  - Maintain proper set numbering when adding/removing sets
+
+- [ ] 2.2.3 Enhanced set display
+  - Show reps and weight data on set cards
+  - Display format: "Set 1: 12 reps @ 135 lbs" (when completed)
+  - Show "Set 1: — reps @ — lbs" (when not completed)
+  - Visual distinction between completed and pending sets
+
+### 2.3 Data Validation & UX Improvements 🎨 **NEW REQUIREMENT**
+- [ ] 2.3.1 Input validation and user guidance
+  - Numeric keyboard for reps and weight fields
+  - Input hints and placeholders ("e.g., 12", "e.g., 135.5")
+  - Validation messages for invalid inputs
+  - Auto-focus progression between fields
+
+- [ ] 2.3.2 Set performance analytics
+  - Calculate and display total volume per exercise (sets × reps × weight)
+  - Show previous set performance for reference
+  - Progressive overload indicators (vs last workout)
+  - Exercise completion status with performance summary
+
+- [ ] 2.3.3 Enhanced timer integration
+  - Rest timer continues during data entry popup
+  - Clear visual indication that rest timer is still running
+  - Seamless transition from set completion → data entry → rest period
+  - Timer state preservation across popup interactions
 
 **User Flow Enhancement**:
-1. User completes Set 1 → Rest timer starts automatically (e.g., 90 seconds)
-2. Rest timer counts up: "Rest: 00:30", "Rest: 01:00", "Rest: 01:30"...
-3. User starts Set 2 → Rest timer stops, rest time added to total time, timer resets to 0
-4. Process repeats for each set completion
+1. User starts Set 1 → Completes set (stops timer) ✅
+2. **NEW**: Data entry popup appears → User enters reps & weight → Clicks ADD
+3. Rest timer starts automatically (or continues if already running) ✅
+4. User can edit set data anytime by tapping completed set card
+5. User can add/remove sets as needed during workout
+6. Exercise shows total volume and performance summary
 
 **Benefits**:
-- Accurate total workout time tracking (including rest periods)
-- Better workout pacing and consistency
-- Professional gym timer experience
-- Improved workout data for analytics
+- Comprehensive workout tracking with actual performance data
+- Progressive overload tracking (essential for strength training)
+- Flexible set management for different workout intensities
+- Professional gym app experience with detailed analytics
 
 ---
 
-## 🔥 **HOTFIX SECTION - Critical Usability Issues**
+## Phase 3: Enhanced Exercise Experience 📚 **PLANNED**
+- [ ] 3.1.1 Exercise instruction screens
+- [ ] 3.1.2 Exercise tips and form cues
+- [ ] 3.1.3 Primary/secondary muscle groups display
+- [ ] 3.1.4 Equipment requirements display
+- [ ] 3.1.5 Exercise difficulty indicators
 
-Before proceeding to Phase 2, we need to address critical usability issues identified during Phase 1 testing:
-
-### HF.1 Exercise Detail Screen UX Issues ✅ **COMPLETED**
-- [x] **HF.1.1** Remove confusing "Mark as Done" button - simplify to Start/Stop workflow ✅
-- [x] **HF.1.2** Implement proper Start → Stop → Complete workflow for sets ✅
-  - User clicks "Start" → Timer begins, button becomes "Complete Set"
-  - User clicks "Complete Set" → Timer stops, set marked as completed automatically
-  - No separate "Mark as Done" button needed
-
-### HF.2 WorkoutTimer Implementation Issues ✅ **COMPLETED**  
-- [x] **HF.2.1** Fix timer display format to proper HH:MM:SS format ✅
-- [x] **HF.2.2** Fix timer counting logic (was accelerating: 1s→3s→6s→10s) ✅
-- [x] **HF.2.3** Ensure proper second-by-second counting (00:00:01, 00:00:02, etc.) ✅
-- [x] **HF.2.4** Test timer accuracy and visual updates ✅
-- [x] **HF.2.5** Fix ExerciseDetailScreen timer display (was showing 42:13:20 instead of 02:32) ✅
-- [x] **HF.2.6** Fix total exercise time display (was showing 24:10:00 instead of 00:22) ✅
-- [x] **HF.2.7** Fix total time live updates (should only update when sets complete, not during timer) ✅
-- [x] **HF.2.8** Fix timer double-counting issue (30 seconds saved as 60 seconds in database) ✅
-
-**Timer Fix Details:**
-- Fixed timer acceleration: Removed double-addition in ViewModel (`timer.elapsedTime + calculated_time`)
-- Fixed unit conversion: Added milliseconds to seconds conversion in UI (`totalExerciseTime / 1000`)
-- Fixed total time behavior: Total now only includes completed sets, not running timers
-- Fixed double-counting: Removed duplicate elapsed time calculation in `stopSetTimer()`
-- Timer now works like proper stopwatch: 1s → 2s → 3s → 4s (linear counting)
-- Total time displays correctly: 22 seconds = `00:22`, not `06:06:40`
-- Live timer and stored database values now match exactly
-
-### HF.3 Set Progression Flow ✅ **COMPLETED**
-- [x] **HF.3.1** Simplify set completion to single Start/Stop action ✅
-- [x] **HF.3.2** Remove redundant UI elements that confuse the workflow ✅
-- [x] **HF.3.3** Ensure clean progression: Start Set → Complete Set → Next Set ✅
-
-**Priority**: These hotfixes must be completed before Phase 2 to ensure good user experience foundation.
+### 3.2 Calendar & History View 📅 **PLANNED**
+- [ ] 3.2.1 Calendar navigation
+- [ ] 3.2.2 Historical workout data view
+- [ ] 3.2.3 Progress tracking over time
+- [ ] 3.2.4 Workout completion statistics
 
 ---
 
-## Phase 2: Enhanced User Interface & User Experience 🚀 **IN PROGRESS**
+## Phase 4: Advanced Features 📱 **PLANNED**
 
-### 2.1 Template Selection UI ✅ **COMPLETED**
-- [x] **2.1.1** Create template selection screen ✅ **COMPLETED**
-- [x] **2.1.2** Add template preview with exercise list ✅ **COMPLETED**  
-- [x] **2.1.3** Allow manual template override for any day ✅ **COMPLETED**
-- [x] **2.1.4** Show template categories (Push/Pull/Legs) ✅ **COMPLETED**
-- [x] **2.1.5** Display template metadata (duration, difficulty, last used) ✅ **COMPLETED**
+### 4.1 Location Services
+- [ ] 4.1.1 Gym location detection
+- [ ] 4.1.2 Location-based notifications
+- [ ] 4.1.3 Gym check-in tracking
 
-### 2.2 Enhanced Exercise Experience ⭐ **NEXT PRIORITY**
-- [ ] **2.2.1** Add exercise instruction screens
-- [ ] **2.2.2** Include exercise tips and form cues
-- [ ] **2.2.3** Show primary/secondary muscle groups
-- [ ] **2.2.4** Equipment requirements display
-- [ ] **2.2.5** Exercise difficulty indicators
+### 4.2 Data Management
+- [ ] 4.2.1 Data export functionality
+- [ ] 4.2.2 Backup/restore system
+- [ ] 4.2.3 30-day data cleanup job
+- [ ] 4.2.4 Data migration handling
 
-### 2.3 Workout Flow Improvements
-- [ ] **2.3.1** Rest timer between sets
-- [ ] **2.3.2** Workout session summary
-- [ ] **2.3.3** Progress celebration animations
-- [ ] **2.3.4** Quick workout restart option
+### 4.3 Enhanced UX
+- [ ] 4.3.1 Dark mode support
+- [ ] 4.3.2 Accessibility improvements
+- [ ] 4.3.3 Animations and transitions
+- [ ] 4.3.4 Haptic feedback
 
 ---
 
-## Phase 3: Progress Tracking & Analytics 🚀
+## Development Status
 
-### 3.1 Progress Tracking
-- [ ] Create PersonalRecord entity for 1RM tracking
-- [ ] Implement weight progression suggestions
-- [ ] Add exercise history graphs
-- [ ] Weekly/monthly progress reports
+### Current Achievement: PHASE 1 COMPLETE! 🎉
+**Major Milestone**: All core functionality is now solid and reliable!
 
-### 3.2 Custom Workouts
-- [ ] Allow users to create custom templates
-- [ ] Exercise substitution system
-- [ ] Workout sharing functionality
-- [ ] Template import/export
+✅ **Database & Architecture** - Robust Room implementation
+✅ **Timer System** - Professional-grade stopwatch with rest periods
+✅ **Workout Flow** - Smooth set progression and completion tracking
+✅ **UI/UX Foundation** - Clean, consistent Material Design 3 interface
+✅ **Data Persistence** - Reliable workout state management
 
-### 3.3 Analytics & Insights
-- [ ] Training volume analytics
-- [ ] Muscle group balance analysis
-- [ ] Workout consistency tracking
-- [ ] Performance trend analysis
+### Next Priority: Phase 2.1 - Set Data Collection & Management
+**Focus**: Comprehensive workout tracking with performance data
 
----
+**Benefits for Users**:
+- Track actual reps performed and weight used per set
+- Progressive overload monitoring for strength gains
+- Flexible set management (add/remove sets during workout)
+- Professional workout data collection and analytics
 
-## Phase 4: Production Ready 🏆
+### Implementation Ready:
+The app now has a solid foundation with:
+- ✅ Accurate timer system (including rest periods)
+- ✅ Reliable data persistence
+- ✅ Clean user interface
+- ✅ Proper error handling
+- ✅ Comprehensive logging for debugging
 
-### 4.1 Performance Optimization
-- [ ] Database indexing optimization
-- [ ] LazyColumn performance improvements
-- [ ] Background data sync
-- [ ] Memory usage optimization
-
-### 4.2 User Experience Polish
-- [ ] Onboarding flow
-- [ ] Exercise video/animation support
-- [ ] Dark mode theme improvements
-- [ ] Accessibility improvements
-
-### 4.3 Data Management
-- [ ] Export/import functionality
-- [ ] Cloud backup integration
-- [ ] Data migration between devices
-- [ ] Offline-first architecture
+**Ready to implement**:
+- Database schema updates for reps_performed and weight_used
+- Set completion popup with mandatory data entry
+- Dynamic set management (+/- buttons)
+- Enhanced set display with performance data
 
 ---
 
-## Development Notes 📝
+## Testing Status
 
-### Recently Fixed Issues ✅
-- Cross-exercise set contamination (sets now properly isolated per exercise)
-- Timer functionality working correctly per set
-- Database foreign key constraints resolved
-- Set progression logic working properly
-- Exercise detail screen navigation fixed
+### Core Functionality ✅ **ALL VERIFIED**
+- [x] App starts without crashes
+- [x] Workout creation for current day
+- [x] Exercise navigation
+- [x] Set completion tracking
+- [x] Database persistence
+- [x] Timer accuracy and formatting
+- [x] Rest timer functionality
+- [x] Total time calculations (including rest periods)
 
-### Current Technical Debt
-- Both day-based and template-based systems running in parallel
-- Manual template selection UI not implemented
-- Some hardcoded workout logic still present
+### Ready for Phase 2 Implementation ✅
+All Phase 1 requirements have been implemented and tested successfully.
+Database and architecture are ready for performance data collection features.
 
-### Next Immediate Tasks
-1. **Template Selection UI** - Allow users to manually choose templates
-2. **Exercise Enhancement** - Show rich metadata in UI
-3. **Workout Flow Polish** - Improve user experience during workouts
+---
 
-### Architecture Status
-- ✅ **Database Layer**: Complete with template system
-- ✅ **Repository Layer**: Full template support implemented  
-- ✅ **ViewModel Layer**: Template integration complete
-- 🔄 **UI Layer**: Basic template support, selection UI pending
-- 🔄 **User Experience**: Core functionality working, polish needed
+*Last Updated: July 31, 2025*
+*Current Status: Phase 1 Complete ✅ | Ready for Phase 2.1 🚀*
