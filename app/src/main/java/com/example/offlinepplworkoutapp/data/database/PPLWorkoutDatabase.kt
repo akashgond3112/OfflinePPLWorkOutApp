@@ -27,7 +27,7 @@ import kotlinx.coroutines.withContext
 
 @Database(
     entities = [Exercise::class, WorkoutDay::class, WorkoutEntry::class, SetEntry::class, WorkoutTemplate::class, TemplateExercise::class],
-    version = 7,  // Updated from 6 to 7 for template system
+    version = 8,  // 🚀 NEW: Updated from 7 to 8 for set performance data fields
     exportSchema = false
 )
 abstract class PPLWorkoutDatabase : RoomDatabase() {
@@ -143,6 +143,26 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
             }
         }
 
+        // 🚀 NEW: Migration from version 7 to 8 - Add set performance data fields
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                println("🔄 MIGRATION: Starting migration from v7 to v8...")
+
+                // Add reps_performed column to set_entries table
+                database.execSQL("""
+                    ALTER TABLE set_entries ADD COLUMN reps_performed INTEGER
+                """.trimIndent())
+
+                // Add weight_used column to set_entries table
+                database.execSQL("""
+                    ALTER TABLE set_entries ADD COLUMN weight_used REAL
+                """.trimIndent())
+
+                println("🔄 MIGRATION: Successfully added reps_performed and weight_used columns to set_entries table")
+                println("🚀 MIGRATION v7→v8: Set performance data fields are now available!")
+            }
+        }
+
         fun getDatabase(context: Context): PPLWorkoutDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -151,7 +171,7 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
                     "ppl_workout_database"
                 )
                     .addCallback(PPLWorkoutDatabaseCallback())
-                    .addMigrations(MIGRATION_6_7)  // Fixed: use addMigrations instead of addMigration
+                    .addMigrations(MIGRATION_6_7, MIGRATION_7_8)  // Fixed: use addMigrations instead of addMigration
                     .fallbackToDestructiveMigration()
                     // Force database recreation to ensure clean state
                     .build()
