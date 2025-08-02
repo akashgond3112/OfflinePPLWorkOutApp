@@ -119,7 +119,7 @@ This document outlines the migration path from the current simplified architectu
   - Popup appears when user completes a set (stops timer)
   - Rest timer continues running in background during data entry
 
-- [ ] 2.1.3 Set data persistence and validation
+- [x] 2.1.3 Set data persistence and validation
   - Save reps and weight data to database on popup submit
   - Input validation (positive numbers, reasonable ranges)
   - Update set completion flow to include data entry step
