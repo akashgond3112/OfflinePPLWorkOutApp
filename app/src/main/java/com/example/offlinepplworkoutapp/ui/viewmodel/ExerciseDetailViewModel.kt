@@ -413,6 +413,28 @@ class ExerciseDetailViewModel(
             println("🔧 COMPLETE SET: Invalid set index $index, cannot mark as completed")
         }
     }
+
+    // 🚀 NEW: Get set performance data for UI display
+    fun getSetData(setIndex: Int) = kotlinx.coroutines.flow.flow {
+        try {
+            // Get all sets for this workout entry
+            val dbSets = repository.getSetsForWorkoutEntrySync(workoutEntry.id)
+
+            // Check if the requested set index exists
+            val set = dbSets.getOrNull(setIndex)
+
+            if (set != null) {
+                println("🎯 DETAIL VM: Found set data for index $setIndex (ID=${set.id}) - reps=${set.repsPerformed}, weight=${set.weightUsed}")
+                emit(set)
+            } else {
+                println("🎯 DETAIL VM: No set found for index $setIndex")
+                emit(null)
+            }
+        } catch (e: Exception) {
+            println("🎯 DETAIL VM ERROR: Failed to get set data - ${e.message}")
+            emit(null)
+        }
+    }
 }
 
 class ExerciseDetailViewModelFactory(
