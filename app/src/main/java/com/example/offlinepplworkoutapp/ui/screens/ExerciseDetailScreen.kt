@@ -149,6 +149,12 @@ fun ExerciseDetailScreen(
             // Set cards with improved design
             itemsIndexed(setTimers) { index, setTimer ->
                 val activeSetIndex by viewModel.activeSetIndex.collectAsState()
+
+                // Get performance data from view model
+                val setData by viewModel.getSetData(index).collectAsState(initial = null)
+                val repsPerformed = setData?.repsPerformed ?: 0
+                val weightUsed = setData?.weightUsed ?: 0f
+
                 ModernSetTimerCard(
                     setNumber = index + 1,
                     totalSets = workoutEntry.sets,
@@ -158,6 +164,8 @@ fun ExerciseDetailScreen(
                     isCompleted = setTimer.isCompleted,
                     isActive = index == activeSetIndex,
                     isLocked = index > activeSetIndex && !setTimer.isCompleted,
+                    repsPerformed = repsPerformed,
+                    weightUsed = weightUsed,
                     onStartTimer = { viewModel.startSetTimer(index) },
                     onStopTimer = { viewModel.stopSetTimer(index) },
                     onCompleteSet = { viewModel.completeSet(index) }
@@ -233,6 +241,8 @@ fun ModernSetTimerCard(
     isCompleted: Boolean = false,
     isActive: Boolean = false,
     isLocked: Boolean = false,
+    repsPerformed: Int = 0,
+    weightUsed: Float = 0f,
     onStartTimer: () -> Unit,
     onStopTimer: () -> Unit,
     onCompleteSet: () -> Unit
@@ -367,13 +377,34 @@ fun ModernSetTimerCard(
             }
 
             // Target reps info
-            Text(
-                text = "Target: $targetReps reps",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = TextSecondary,
-                    fontSize = 14.sp
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Target: $targetReps reps",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = TextSecondary,
+                        fontSize = 14.sp
+                    )
                 )
-            )
+
+                // 🚀 NEW: Display performance data when set is completed
+                if (isCompleted && (repsPerformed > 0 || weightUsed > 0f)) {
+                    Text(
+                        text = buildString {
+                            if (repsPerformed > 0) append("$repsPerformed reps")
+                            if (repsPerformed > 0 && weightUsed > 0f) append(" × ")
+                            if (weightUsed > 0f) append("${weightUsed}lbs")
+                        },
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = PrimaryCoral,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    )
+                }
+            }
 
             // Action buttons with modern design
             Row(
@@ -382,25 +413,59 @@ fun ModernSetTimerCard(
             ) {
                 when {
                     isCompleted -> {
-                        // Completed state - show success message
-                        Row(
+                        // Completed state - show success message and performance data
+                        Column(
                             modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = "Completed",
-                                tint = SuccessGreen,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Set Completed",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = SuccessGreen,
-                                    fontWeight = FontWeight.Medium
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Completed",
+                                    tint = SuccessGreen,
+                                    modifier = Modifier.size(16.dp)
                                 )
-                            )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Set Completed",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = SuccessGreen,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                )
+                            }
+
+                            // 🚀 NEW: Detailed performance data display
+                            if (repsPerformed > 0 || weightUsed > 0f) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp),
+                                    horizontalArrangement = Arrangement.Start
+                                ) {
+                                    if (repsPerformed > 0) {
+                                        Text(
+                                            text = "Performed: $repsPerformed reps",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = TextSecondary
+                                            )
+                                        )
+                                    }
+                                    if (repsPerformed > 0 && weightUsed > 0f) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
+                                    if (weightUsed > 0f) {
+                                        Text(
+                                            text = "Weight: ${weightUsed}lbs",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = TextSecondary
+                                            )
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                     isLocked -> {
@@ -418,7 +483,9 @@ fun ModernSetTimerCard(
                         // 🚀 NEW: Phase 2.1.2 - Just stop timer, dialog will handle completion
                         Button(
                             onClick = {
-                                onStopTimer() // This will show the data entry dialog
+                                // 🔧 FIX: Call onStopTimer to stop the timer and trigger the dialog
+                                onStopTimer()
+                                println("🔧 DEBUG: Complete Set button clicked - stopping timer")
                             },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
@@ -428,7 +495,7 @@ fun ModernSetTimerCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Check,
-                                contentDescription = "Complete Set",
+                                contentDescription = "Stop and Complete",
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
