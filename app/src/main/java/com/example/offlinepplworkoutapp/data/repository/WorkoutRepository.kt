@@ -332,8 +332,8 @@ class WorkoutRepository(
         setId: Int,
         isCompleted: Boolean,
         elapsedTimeSeconds: Int,
-        repsPerformed: Int?,
-        weightUsed: Float?
+        repsPerformed: Int,
+        weightUsed: Float
     ) {
         val completedAt = if (isCompleted) System.currentTimeMillis() else null
         setEntryDao.updateSetProgressWithPerformanceData(
@@ -347,7 +347,7 @@ class WorkoutRepository(
         println("🏋️ REPO: Updated set $setId with performance data - reps: $repsPerformed, weight: $weightUsed")
     }
 
-    suspend fun updateSetPerformanceDataOnly(setId: Int, repsPerformed: Int?, weightUsed: Float?) {
+    suspend fun updateSetPerformanceDataOnly(setId: Int, repsPerformed: Int, weightUsed: Float) {
         setEntryDao.updateSetPerformanceData(setId, repsPerformed, weightUsed)
         println("🏋️ REPO: Updated performance data for set $setId - reps: $repsPerformed, weight: $weightUsed")
     }
