@@ -210,15 +210,7 @@ fun MainScreen(
                     viewModel.setDebugDate(debugDate)
                     showDebugMenu = false
                 },
-                onDismiss = { showDebugMenu = false },
-                onResetToToday = {
-                    viewModel.setDebugDate(null)
-                    showDebugMenu = false
-                },
-                onResetDatabase = {
-                    // Show confirmation dialog before resetting the database
-                    showResetConfirmation = true
-                }
+                onDismiss = { showDebugMenu = false }
             )
         }
     }
@@ -844,9 +836,7 @@ fun RestDayScreen() {
 @Composable
 fun DebugDaySelector(
     onDaySelected: (Int) -> Unit,
-    onDismiss: () -> Unit,
-    onResetToToday: () -> Unit,
-    onResetDatabase: () -> Unit = {}  // Added parameter for database reset
+    onDismiss: () -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -955,9 +945,10 @@ fun DebugDaySelector(
             }
         },
         confirmButton = {
-            TextButton(onClick = onResetToToday) {
-                Text("Reset to Today")
-            }
+            //TODO: Uncomment when reset functionality is implemented
+//            TextButton(onClick = onResetToToday) {
+//                Text("Reset to Today")
+//            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
