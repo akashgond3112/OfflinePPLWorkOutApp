@@ -181,9 +181,16 @@ fun MainScreen(
                 ExerciseDetailScreen(
                     workoutEntry = selectedExercise!!,
                     repository = repository,
-                    onBackClick = { selectedExercise = null },
+                    onBackClick = {
+                        // Force a refresh of workout data when returning from detail screen
+                        viewModel.refreshTodaysWorkout()
+                        selectedExercise = null
+                        viewModel.refreshTodaysWorkout()
+                    },
                     onSaveChanges = { sets, reps, isCompleted ->
                         viewModel.updateExercise(selectedExercise!!.id, sets, reps, isCompleted)
+                        // Force a refresh to ensure updated set count is displayed
+                        viewModel.refreshTodaysWorkout()
                     }
                 )
             }
