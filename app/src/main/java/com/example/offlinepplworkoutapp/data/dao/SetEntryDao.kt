@@ -42,6 +42,10 @@ interface SetEntryDao {
     @Query("SELECT * FROM set_entries WHERE id = :setId")
     suspend fun getSetById(setId: Int): SetEntry?
 
+    // 🆕 NEW: 2.2.1 - Get set by workout entry and set number for editing functionality
+    @Query("SELECT * FROM set_entries WHERE workout_entry_id = :workoutEntryId AND setNumber = :setNumber")
+    fun getSetByWorkoutEntryAndSetNumber(workoutEntryId: Int, setNumber: Int): Flow<SetEntry?>
+
     @Query("DELETE FROM set_entries WHERE workout_entry_id = :workoutEntryId")
     suspend fun deleteByWorkoutEntryId(workoutEntryId: Int)
 
@@ -56,4 +60,14 @@ interface SetEntryDao {
 
     @Query("SELECT COUNT(*) FROM set_entries WHERE workout_entry_id = :workoutEntryId")
     suspend fun getTotalSetsCount(workoutEntryId: Int): Int
+
+    // 🆕 NEW: 2.2.2 - Dynamic Set Management Methods
+    @Delete
+    suspend fun deleteSet(setEntry: SetEntry)
+
+    @Query("DELETE FROM set_entries WHERE id = :setId")
+    suspend fun deleteSetById(setId: Int)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSet(setEntry: SetEntry): Long
 }
