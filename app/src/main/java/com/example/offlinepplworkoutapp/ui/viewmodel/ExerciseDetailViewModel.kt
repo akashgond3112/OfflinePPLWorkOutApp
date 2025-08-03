@@ -98,7 +98,7 @@ class ExerciseDetailViewModel(
             repository.getSetsForWorkoutEntry(workoutEntry.id).collect { dbSets ->
                 println("🔍 DETAIL VM: Received ${dbSets.size} sets from Flow for WorkoutEntry ID: ${workoutEntry.id}")
                 dbSets.forEach { set ->
-                    println("🔍 DETAIL VM: Flow Set ID=${set.id}, SetNumber=${set.setNumber}, WorkoutEntryId=${set.workoutEntryId}, completed=${set.isCompleted}, time=${set.elapsedTimeSeconds}s")
+                    println("🔍 DETAIL VM: Flow Set ID=${set.id}, SetNumber=${set.setNumber}, WorkoutEntryId=${set.workoutEntryId}, completed=${set.isCompleted}, time=${set.elapsedTimeSeconds}s, repsPerformed=${set.repsPerformed}")
                 }
 
                 val setTimers = dbSets.map { setEntry ->
@@ -259,13 +259,160 @@ class ExerciseDetailViewModel(
         }
     }
 
-    // 🚀 NEW: Phase 2.1.2 - Cancel dialog (if needed for future enhancements)
+    // 🆕 NEW: 2.2.1 - Edit set data functionality
+    fun editSetData(setIndex: Int) {
+        println("🎯 EDIT: editSetData called for set ${setIndex + 1}")
+
+        viewModelScope.launch {
+            val sets = repository.getSetsForWorkoutEntrySync(workoutEntry.id)
+            val setToEdit = sets.getOrNull(setIndex)
+
+            if (setToEdit != null && setToEdit.isCompleted) {
+                println("🎯 EDIT: Opening edit dialog for completed set ${setIndex + 1}")
+                _pendingSetData.value = Pair(setIndex, setToEdit.id)
+                _showSetDataDialog.value = true
+            } else {
+                println("🎯 EDIT: Cannot edit set ${setIndex + 1} - not completed or not found")
+            }
+        }
+    }
+
+    // Enhanced dialog state management for editing
     fun dismissSetDataDialog() {
-        // Note: As per requirements, there should be no cancel option
-        // This method is for potential future use or error handling
-        println("🎯 DIALOG: Dialog dismissed (should not happen in normal flow)")
+        println("🎯 DIALOG: Dismissing set data dialog")
         _showSetDataDialog.value = false
         _pendingSetData.value = null
+    }
+
+    // Get set data for UI display
+    fun getSetData(setIndex: Int) = repository.getSetByIndex(workoutEntry.id, setIndex + 1)
+
+    // 🆕 NEW: 2.2.2 - Dynamic Set Management Functions
+
+    // 🆕 NEW: Enhanced set management methods
+    fun removeSpecificSet(setIndex: Int) {
+        println("🔧 SET MGMT: removeSpecificSet() called for index $setIndex")
+
+        viewModelScope.launch {
+            try {
+                val currentSets = repository.getSetsForWorkoutEntrySync(workoutEntry.id)
+
+                if (setIndex < currentSets.size) {
+                    val setToRemove = currentSets[setIndex]
+
+                    // Can only remove incomplete sets and must have more than 1 set
+                    if (!setToRemove.isCompleted && currentSets.size > 1) {
+                        println("🔧 SET MGMT: Removing set #${setToRemove.setNumber} (ID: ${setToRemove.id})")
+
+                        // Stop any running timer for this set
+                        if (_currentRunningSet.value == setIndex) {
+                            stopAllTimers()
+                        }
+
+                        // Remove set from database
+                        repository.removeSetFromWorkoutEntry(setToRemove.id)
+
+                        // Update active set index if needed
+                        val newSetCount = currentSets.size - 1
+                        if (_activeSetIndex.value >= newSetCount) {
+                            _activeSetIndex.value = maxOf(0, newSetCount - 1)
+                        }
+
+                        println("🔧 SET MGMT: Successfully removed set at index $setIndex")
+                    } else {
+                        println("🔧 SET MGMT ERROR: Cannot remove set - either completed or minimum count reached")
+                    }
+                }
+            } catch (e: Exception) {
+                println("🔧 SET MGMT ERROR: Failed to remove specific set - ${e.message}")
+            }
+        }
+    }
+
+    fun addSetWithReps() {
+        println("🔧 SET MGMT: addSetWithReps() called")
+
+        viewModelScope.launch {
+            try {
+                val currentSets = repository.getSetsForWorkoutEntrySync(workoutEntry.id)
+                val newSetNumber = currentSets.size + 1
+
+                if (currentSets.size < 8) { // Max 8 sets per exercise
+                    println("🔧 SET MGMT: Adding set #$newSetNumber")
+
+                    // Add new set to database - we don't need to pass targetReps since
+                    // the target reps value comes from the parent workout entry
+                    repository.addSetToWorkoutEntry(workoutEntry.id, newSetNumber)
+
+                    println("🔧 SET MGMT: Successfully added set #$newSetNumber")
+                } else {
+                    println("🔧 SET MGMT ERROR: Cannot add set - maximum 8 sets reached")
+                }
+            } catch (e: Exception) {
+                println("🔧 SET MGMT ERROR: Failed to add set - ${e.message}")
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        timerJob?.cancel()
+        restTimerJob?.cancel() // 🚀 NEW: Clean up rest timer job
+    }
+
+    private fun stopAllTimers() {
+        timerJob?.cancel()
+        val updatedTimers = _setTimers.value.map { timer ->
+            timer.copy(isRunning = false)
+        }
+        _setTimers.value = updatedTimers
+        _currentRunningSet.value = null
+    }
+
+    private fun updateTimerForSet(setIndex: Int) {
+        val updatedTimers = _setTimers.value.toMutableList()
+        val timer = updatedTimers[setIndex]
+
+        if (timer.isRunning) {
+            val currentTime = System.currentTimeMillis()
+            // 🔧 FIXED: Don't add previous elapsedTime - just calculate from start
+            val elapsed = currentTime - timer.startTime
+            updatedTimers[setIndex] = timer.copy(elapsedTime = elapsed)
+            _setTimers.value = updatedTimers
+
+            // 🔧 REMOVED: Don't update total time during live timer updates
+            // updateTotalExerciseTime() // This was causing live updates in top bar
+
+            // 🔧 ADDED: Force UI recomposition for live stopwatch display
+            println("⏱️ TIMER: Set ${setIndex + 1} - ${elapsed / 1000}s (Live)")
+        }
+    }
+
+    private fun updateTotalExerciseTime() {
+        // 🔧 FIXED: Only count completed sets for total time, not running timers
+        val completedSets = _setTimers.value.filter { it.isCompleted }
+
+        println("🕐 TOTAL TIME DEBUG: Calculating total exercise time...")
+        println("🕐 TOTAL TIME DEBUG: Found ${completedSets.size} completed sets:")
+
+        completedSets.forEachIndexed { index, set ->
+            println("🕐 TOTAL TIME DEBUG: Set ${index + 1}: ${set.elapsedTime}ms (${set.elapsedTime / 1000}s)")
+        }
+
+        val setTime = completedSets.sumOf { it.elapsedTime }
+
+        // 🚀 NEW: Include accumulated rest time in total
+        val restTime = _totalRestTime.value
+        val totalTime = setTime + restTime
+
+        println("🕐 TOTAL TIME DEBUG: Sum of all completed sets: ${setTime}ms (${setTime / 1000}s)")
+        println("🕐 TOTAL TIME DEBUG: Total accumulated rest time: ${restTime}ms (${restTime / 1000}s)")
+        println("🕐 TOTAL TIME DEBUG: Combined total time: ${totalTime}ms (${totalTime / 1000}s)")
+        println("🕐 TOTAL TIME DEBUG: Setting _totalExerciseTime to: ${totalTime}")
+
+        _totalExerciseTime.value = totalTime
+
+        println("🕐 TOTAL TIME DEBUG: _totalExerciseTime.value is now: ${_totalExerciseTime.value}")
     }
 
     // 🚀 NEW: Rest timer functionality
@@ -336,104 +483,6 @@ class ExerciseDetailViewModel(
         updateTotalExerciseTime()
 
         println("⏹️ REST TIMER STOPPED - Rest time captured and added to total")
-    }
-
-    private fun stopAllTimers() {
-        timerJob?.cancel()
-        val updatedTimers = _setTimers.value.map { timer ->
-            timer.copy(isRunning = false)
-        }
-        _setTimers.value = updatedTimers
-        _currentRunningSet.value = null
-    }
-
-    private fun updateTimerForSet(setIndex: Int) {
-        val updatedTimers = _setTimers.value.toMutableList()
-        val timer = updatedTimers[setIndex]
-
-        if (timer.isRunning) {
-            val currentTime = System.currentTimeMillis()
-            // 🔧 FIXED: Don't add previous elapsedTime - just calculate from start
-            val elapsed = currentTime - timer.startTime
-            updatedTimers[setIndex] = timer.copy(elapsedTime = elapsed)
-            _setTimers.value = updatedTimers
-
-            // 🔧 REMOVED: Don't update total time during live timer updates
-            // updateTotalExerciseTime() // This was causing live updates in top bar
-
-            // 🔧 ADDED: Force UI recomposition for live stopwatch display
-            println("⏱️ TIMER: Set ${setIndex + 1} - ${elapsed / 1000}s (Live)")
-        }
-    }
-
-    private fun updateTotalExerciseTime() {
-        // 🔧 FIXED: Only count completed sets for total time, not running timers
-        val completedSets = _setTimers.value.filter { it.isCompleted }
-
-        println("🕐 TOTAL TIME DEBUG: Calculating total exercise time...")
-        println("🕐 TOTAL TIME DEBUG: Found ${completedSets.size} completed sets:")
-
-        completedSets.forEachIndexed { index, set ->
-            println("🕐 TOTAL TIME DEBUG: Set ${index + 1}: ${set.elapsedTime}ms (${set.elapsedTime / 1000}s)")
-        }
-
-        val setTime = completedSets.sumOf { it.elapsedTime }
-
-        // 🚀 NEW: Include accumulated rest time in total
-        val restTime = _totalRestTime.value
-        val totalTime = setTime + restTime
-
-        println("🕐 TOTAL TIME DEBUG: Sum of all completed sets: ${setTime}ms (${setTime / 1000}s)")
-        println("🕐 TOTAL TIME DEBUG: Total accumulated rest time: ${restTime}ms (${restTime / 1000}s)")
-        println("🕐 TOTAL TIME DEBUG: Combined total time: ${totalTime}ms (${totalTime / 1000}s)")
-        println("🕐 TOTAL TIME DEBUG: Setting _totalExerciseTime to: ${totalTime}")
-
-        _totalExerciseTime.value = totalTime
-
-        println("🕐 TOTAL TIME DEBUG: _totalExerciseTime.value is now: ${_totalExerciseTime.value}")
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        timerJob?.cancel()
-        restTimerJob?.cancel() // 🚀 NEW: Clean up rest timer job
-    }
-
-    fun completeSet(index: Int) {
-        //TODO: Implement logic to mark a set as completed
-        println("🔧 COMPLETE SET: Marking set ${index + 1} as completed (not implemented yet)")
-        val updatedTimers = _setTimers.value.toMutableList()
-        if (index in updatedTimers.indices) {
-            updatedTimers[index] = updatedTimers[index].copy(isCompleted = true)
-            _setTimers.value = updatedTimers
-            _completedSets.value = _setTimers.value.count { it.isCompleted }
-            _isExerciseCompleted.value = _completedSets.value == workoutEntry.sets
-            println("🔧 COMPLETE SET: Set ${index + 1} marked as completed")
-        } else {
-            println("🔧 COMPLETE SET: Invalid set index $index, cannot mark as completed")
-        }
-    }
-
-    // 🚀 NEW: Get set performance data for UI display
-    fun getSetData(setIndex: Int) = kotlinx.coroutines.flow.flow {
-        try {
-            // Get all sets for this workout entry
-            val dbSets = repository.getSetsForWorkoutEntrySync(workoutEntry.id)
-
-            // Check if the requested set index exists
-            val set = dbSets.getOrNull(setIndex)
-
-            if (set != null) {
-                println("🎯 DETAIL VM: Found set data for index $setIndex (ID=${set.id}) - reps=${set.repsPerformed}, weight=${set.weightUsed}")
-                emit(set)
-            } else {
-                println("🎯 DETAIL VM: No set found for index $setIndex")
-                emit(null)
-            }
-        } catch (e: Exception) {
-            println("🎯 DETAIL VM ERROR: Failed to get set data - ${e.message}")
-            emit(null)
-        }
     }
 }
 
