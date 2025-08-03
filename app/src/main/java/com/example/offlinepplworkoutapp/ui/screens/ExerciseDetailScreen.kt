@@ -1,21 +1,54 @@
 package com.example.offlinepplworkoutapp.ui.screens
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,13 +61,21 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
-import kotlinx.coroutines.delay
-import com.example.offlinepplworkoutapp.ui.theme.*
+import com.example.offlinepplworkoutapp.ui.components.SetDataEntryDialog
+import com.example.offlinepplworkoutapp.ui.theme.AmberAccent
+import com.example.offlinepplworkoutapp.ui.theme.BackgroundLight
+import com.example.offlinepplworkoutapp.ui.theme.CardBackground
+import com.example.offlinepplworkoutapp.ui.theme.PrimaryCoral
+import com.example.offlinepplworkoutapp.ui.theme.ProgressEnd
+import com.example.offlinepplworkoutapp.ui.theme.ProgressStart
+import com.example.offlinepplworkoutapp.ui.theme.SuccessGreen
+import com.example.offlinepplworkoutapp.ui.theme.TealSecondary
+import com.example.offlinepplworkoutapp.ui.theme.TextOnPrimary
+import com.example.offlinepplworkoutapp.ui.theme.TextPrimary
+import com.example.offlinepplworkoutapp.ui.theme.TextSecondary
 import com.example.offlinepplworkoutapp.ui.viewmodel.ExerciseDetailViewModel
 import com.example.offlinepplworkoutapp.ui.viewmodel.ExerciseDetailViewModelFactory
-import com.example.offlinepplworkoutapp.ui.components.SetDataEntryDialog
-import com.example.offlinepplworkoutapp.ui.components.SetPerformanceData
-import java.util.Locale
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,7 +123,7 @@ fun ExerciseDetailScreen(
                             )
                         )
                         Text(
-                            text = "Sets: $completedSets/${workoutEntry.sets} • Total: ${formatTime(totalExerciseTime / 1000)}".also {
+                            text = "Sets: $completedSets/${setTimers.size} • Total: ${formatTime(totalExerciseTime / 1000)}".also {
                                 println("🕐 UI DEBUG: Displaying total time - Raw: ${totalExerciseTime}ms, Converted: ${totalExerciseTime / 1000}s, Formatted: ${formatTime(totalExerciseTime / 1000)}")
                             },
                             style = MaterialTheme.typography.bodyMedium.copy(
@@ -146,7 +187,7 @@ fun ExerciseDetailScreen(
                 }
             }
 
-            // Set cards with improved design
+            // Set cards with improved design and delete functionality
             itemsIndexed(setTimers) { index, setTimer ->
                 val activeSetIndex by viewModel.activeSetIndex.collectAsState()
 
@@ -157,7 +198,7 @@ fun ExerciseDetailScreen(
 
                 ModernSetTimerCard(
                     setNumber = index + 1,
-                    totalSets = workoutEntry.sets,
+                    totalSets = setTimers.size,
                     targetReps = workoutEntry.reps,
                     setTimer = setTimer.elapsedTime / 1000, // 🔧 FIXED: Convert milliseconds to seconds
                     isCurrentSet = currentRunningSet == index,
@@ -168,8 +209,24 @@ fun ExerciseDetailScreen(
                     weightUsed = weightUsed,
                     onStartTimer = { viewModel.startSetTimer(index) },
                     onStopTimer = { viewModel.stopSetTimer(index) },
-                    onCompleteSet = { viewModel.completeSet(index) }
+                    onCompleteSet = { /* This callback is not needed anymore since we use onStopTimer */ },
+                    onEditSet = { viewModel.editSetData(index) },
+                    // 🆕 NEW: Add delete functionality for incomplete sets
+                    onDeleteSet = if (!setTimer.isCompleted && setTimers.size > 1) {
+                        { viewModel.removeSpecificSet(index) }
+                    } else null
                 )
+            }
+
+            // 🆕 NEW: Simple Add Set Button (replaces the bulky management card)
+            item {
+                val canAddSet = setTimers.size < 8 // Max 8 sets per exercise
+
+                if (canAddSet) {
+                    AddSetButton(
+                        onAddSet = { viewModel.addSetWithReps() }
+                    )
+                }
             }
         }
     }
@@ -177,6 +234,11 @@ fun ExerciseDetailScreen(
     // 🚀 NEW: Phase 2.1.2 - Set Data Entry Dialog
     if (showSetDataDialog) {
         pendingSetData?.let { (setIndex, _) ->
+            // Get existing set data for editing mode
+            val setData by viewModel.getSetData(setIndex).collectAsState(initial = null)
+            val currentSetData = setData // Create a local variable for smart casting
+            val isEditMode = currentSetData != null && currentSetData.isCompleted
+
             SetDataEntryDialog(
                 setNumber = setIndex + 1,
                 exerciseName = workoutEntry.exerciseName,
@@ -186,8 +248,16 @@ fun ExerciseDetailScreen(
                         weightUsed = performanceData.weightUsed
                     )
                 },
-                isRestTimerRunning = isRestActive,
-                restTimeFormatted = formatTime(restTimer / 1000)
+                onCancel = if (isEditMode) {
+                    // 🆕 NEW: Cancel callback for edit mode
+                    { viewModel.dismissSetDataDialog() }
+                } else null, // No cancel for new entries
+                isRestTimerRunning = isRestActive && !isEditMode, // Don't show rest timer when editing
+                restTimeFormatted = formatTime(restTimer / 1000),
+                // 🆕 NEW: Edit mode parameters
+                isEditMode = isEditMode,
+                initialReps = currentSetData?.repsPerformed ?: 0,
+                initialWeight = currentSetData?.weightUsed ?: 0f
             )
         }
     }
@@ -245,7 +315,9 @@ fun ModernSetTimerCard(
     weightUsed: Float = 0f,
     onStartTimer: () -> Unit,
     onStopTimer: () -> Unit,
-    onCompleteSet: () -> Unit
+    onCompleteSet: () -> Unit,
+    onEditSet: () -> Unit, // 🆕 NEW: Edit action
+    onDeleteSet: (() -> Unit)? = null // 🆕 NEW: Delete action
 ) {
     // Animation for card state changes
     val animatedElevation by animateDpAsState(
@@ -368,12 +440,30 @@ fun ModernSetTimerCard(
                     )
                 }
 
-                // Timer display with improved styling
-                TimerDisplay(
-                    time = setTimer,
-                    isActive = isCurrentSet,
-                    isCompleted = isCompleted
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // 🆕 NEW: Delete button for incomplete sets
+                    if (onDeleteSet != null) {
+                        IconButton(
+                            onClick = onDeleteSet,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete set",
+                                tint = PrimaryCoral,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
+                    // Timer display with improved styling
+                    TimerDisplay(
+                        time = setTimer,
+                        isActive = isCurrentSet,
+                        isCompleted = isCompleted
+                    )
+                }
             }
 
             // Target reps info
@@ -414,57 +504,76 @@ fun ModernSetTimerCard(
                 when {
                     isCompleted -> {
                         // Completed state - show success message and performance data
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = "Completed",
-                                    tint = SuccessGreen,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Set Completed",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        color = SuccessGreen,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                )
-                            }
-
-                            // 🚀 NEW: Detailed performance data display
-                            if (repsPerformed > 0 || weightUsed > 0f) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 4.dp),
-                                    horizontalArrangement = Arrangement.Start
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    if (repsPerformed > 0) {
-                                        Text(
-                                            text = "Performed: $repsPerformed reps",
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                color = TextSecondary
-                                            )
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Completed",
+                                        tint = SuccessGreen,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Set Completed",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            color = SuccessGreen,
+                                            fontWeight = FontWeight.Medium
                                         )
-                                    }
-                                    if (repsPerformed > 0 && weightUsed > 0f) {
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                    }
-                                    if (weightUsed > 0f) {
-                                        Text(
-                                            text = "Weight: ${weightUsed}lbs",
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                color = TextSecondary
+                                    )
+                                }
+
+                                // 🚀 NEW: Detailed performance data display
+                                if (repsPerformed > 0 || weightUsed > 0f) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 4.dp),
+                                        horizontalArrangement = Arrangement.Start
+                                    ) {
+                                        if (repsPerformed > 0) {
+                                            Text(
+                                                text = "Performed: $repsPerformed reps",
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = TextSecondary
+                                                )
                                             )
-                                        )
+                                        }
+                                        if (repsPerformed > 0 && weightUsed > 0f) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                        }
+                                        if (weightUsed > 0f) {
+                                            Text(
+                                                text = "Weight: ${weightUsed}lbs",
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = TextSecondary
+                                                )
+                                            )
+                                        }
                                     }
                                 }
+                            }
+
+                            // 🆕 NEW: Edit button for completed sets
+                            IconButton(
+                                onClick = onEditSet,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit set data",
+                                    tint = PrimaryCoral,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
                     }
@@ -639,6 +748,74 @@ fun RestTimerCard(
                     color = AmberAccent,
                     fontSize = 24.sp
                 )
+            )
+        }
+    }
+}
+
+// 🆕 NEW: 2.2.2 - Dynamic Set Management Controls with simplified UI
+@Composable
+fun AddSetButton(
+    onAddSet: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(4.dp, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(
+            containerColor = CardBackground
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header with description
+            Text(
+                text = "Add New Set",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+            )
+
+            Text(
+                text = "Add a new set using the default target repetitions for this exercise.",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = TextSecondary,
+                    fontSize = 14.sp
+                )
+            )
+
+            // Add set button
+            Button(
+                onClick = onAddSet,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PrimaryCoral
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add Set",
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Add Set")
+            }
+
+            // Help text
+            Text(
+                text = "Maximum 8 sets per exercise.",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = TextSecondary.copy(alpha = 0.7f),
+                    fontSize = 12.sp
+                ),
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
