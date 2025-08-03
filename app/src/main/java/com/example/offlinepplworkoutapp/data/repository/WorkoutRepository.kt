@@ -356,6 +356,36 @@ class WorkoutRepository(
         return setEntryDao.getSetById(setId)
     }
 
+    // 🆕 NEW: 2.2.1 - Get set data by index for editing functionality
+    fun getSetByIndex(workoutEntryId: Int, setNumber: Int): Flow<SetEntry?> {
+        return setEntryDao.getSetByWorkoutEntryAndSetNumber(workoutEntryId, setNumber)
+    }
+
+    // 🆕 NEW: 2.2.2 - Dynamic Set Management Methods
+    suspend fun addSetToWorkoutEntry(workoutEntryId: Int, setNumber: Int) {
+        println("🔧 REPO: Adding set #$setNumber to WorkoutEntry ID=$workoutEntryId")
+
+        // Note: targetReps is just for logging - we don't store it in the SetEntry
+        // The target reps come from the parent WorkoutEntry's reps field
+        val newSet = SetEntry(
+            workoutEntryId = workoutEntryId,
+            setNumber = setNumber,
+            isCompleted = false,
+            elapsedTimeSeconds = 0,
+            repsPerformed = 0,  // Set to 0 as no reps have been performed yet
+            weightUsed = 0f
+        )
+
+        val setId = setEntryDao.insertSet(newSet)
+        println("🔧 REPO: Successfully added set with ID=$setId")
+    }
+
+    suspend fun removeSetFromWorkoutEntry(setId: Int) {
+        println("🔧 REPO: Removing set with ID=$setId")
+        setEntryDao.deleteSetById(setId)
+        println("🔧 REPO: Successfully removed set")
+    }
+
     suspend fun createSetsForWorkoutEntry(workoutEntryId: Int, totalSets: Int) {
         val sets = (1..totalSets).map { setNumber ->
             SetEntry(
@@ -403,7 +433,12 @@ class WorkoutRepository(
     // Method to manually create today's workout (called when user wants to start workout)
     suspend fun createTodaysWorkout(): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
         val today = dateFormat.format(Date())
-        println("🚀 REPO: Creating today's workout for date: $today")
+        return createWorkoutForDate(today)
+    }
+
+    // 🔧 NEW: Create workout for any specific date (supports debug mode)
+    suspend fun createWorkoutForDate(date: String): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
+        println("🚀 REPO: Creating workout for date: $date")
 
         // First, ensure exercises exist in the database
         val exerciseCount = workoutEntryDao.getWorkoutEntryCount() // This will check if ANY entries exist
@@ -419,7 +454,7 @@ class WorkoutRepository(
         }
 
         // Check if workout day already exists
-        val existingWorkoutDay = workoutDayDao.getWorkoutDayByDate(today)
+        val existingWorkoutDay = workoutDayDao.getWorkoutDayByDate(date)
 
         if (existingWorkoutDay != null) {
             println("🚀 REPO: Found existing workout day with ID: ${existingWorkoutDay.id}")
@@ -431,7 +466,7 @@ class WorkoutRepository(
             if (existingEntriesCount == 0) {
                 println("🚀 REPO: No exercises found, creating them now...")
                 // Day exists but has no exercises, create them
-                val workoutType = getWorkoutTypeForDate(today)
+                val workoutType = getWorkoutTypeForDate(date)
                 val exercises = getExercisesForWorkoutType(workoutType)
                 println("🚀 REPO: Got ${exercises.size} exercises for workout type: $workoutType")
 
@@ -480,12 +515,12 @@ class WorkoutRepository(
         } else {
             println("🚀 REPO: No existing workout day, creating new one...")
             // Force create the workout day and exercises
-            val workoutDay = createWorkoutDayWithExercises(today)
+            val workoutDay = createWorkoutDayWithExercises(date)
             println("🚀 REPO: Created new workout day with ID: ${workoutDay.id}")
         }
 
         // Get the final workout day (either existing or newly created)
-        val finalWorkoutDay = workoutDayDao.getWorkoutDayByDate(today)!!
+        val finalWorkoutDay = workoutDayDao.getWorkoutDayByDate(date)!!
         println("🚀 REPO: Final workout day ID: ${finalWorkoutDay.id}")
 
         // Return the flow of workout entries
