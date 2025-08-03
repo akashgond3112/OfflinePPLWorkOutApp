@@ -1,6 +1,7 @@
 package com.example.offlinepplworkoutapp.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,23 +27,32 @@ fun SetDataEntryDialog(
     setNumber: Int,
     exerciseName: String,
     onDataEntered: (SetPerformanceData) -> Unit,
+    onCancel: (() -> Unit)? = null, // 🆕 NEW: Optional cancel callback for edit mode
     isRestTimerRunning: Boolean = false,
-    restTimeFormatted: String = "00:00"
+    restTimeFormatted: String = "00:00",
+    // NEW: Edit mode support
+    isEditMode: Boolean = false,
+    initialReps: Int = 0,
+    initialWeight: Float = 0f
 ) {
-    var repsText by remember { mutableStateOf("") }
-    var weightText by remember { mutableStateOf("") }
+    var repsText by remember { mutableStateOf(if (isEditMode && initialReps > 0) initialReps.toString() else "") }
+    var weightText by remember { mutableStateOf(if (isEditMode && initialWeight > 0f) initialWeight.toString() else "") }
     var repsError by remember { mutableStateOf(false) }
     var weightError by remember { mutableStateOf(false) }
 
-    println("🎯 DIALOG: SetDataEntryDialog opened for set $setNumber of $exerciseName")
+    println("🎯 DIALOG: SetDataEntryDialog opened for set $setNumber of $exerciseName (Edit mode: $isEditMode)")
 
     Dialog(
         onDismissRequest = {
-            // No dismiss on outside click - user must enter data
-            println("🎯 DIALOG: Dismiss request blocked - data entry required")
+            // Allow dismiss only in edit mode
+            if (isEditMode && onCancel != null) {
+                onCancel()
+            } else {
+                println("🎯 DIALOG: Dismiss request blocked - data entry required")
+            }
         },
         properties = DialogProperties(
-            dismissOnBackPress = false,
+            dismissOnBackPress = isEditMode, // Allow back press only in edit mode
             dismissOnClickOutside = false
         )
     ) {
@@ -61,8 +71,8 @@ fun SetDataEntryDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Header with rest timer indicator
-                if (isRestTimerRunning) {
+                // Header with rest timer indicator (only show for new entries, not edits)
+                if (isRestTimerRunning && !isEditMode) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -86,14 +96,50 @@ fun SetDataEntryDialog(
                     }
                 }
 
-                // Title
+                // Title - different for edit vs new entry
                 Text(
-                    text = "Set $setNumber Complete!",
+                    text = if (isEditMode) "Edit Set $setNumber" else "Set $setNumber Complete!",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.Black,
                     textAlign = TextAlign.Center
                 )
+
+                // 🆕 NEW: Show current values prominently in edit mode
+                if (isEditMode && (initialReps > 0 || initialWeight > 0f)) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFF3E5F5) // Light purple background
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Current Values:",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color(0xFF7B1FA2) // Purple text
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = buildString {
+                                    if (initialReps > 0) append("$initialReps reps")
+                                    if (initialReps > 0 && initialWeight > 0f) append(" × ")
+                                    if (initialWeight > 0f) append("${initialWeight}lbs")
+                                },
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF7B1FA2)
+                            )
+                        }
+                    }
+                }
 
                 // Exercise name
                 Text(
@@ -160,47 +206,119 @@ fun SetDataEntryDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // ADD button (no cancel button as per requirements)
-                Button(
-                    onClick = {
-                        println("🎯 DIALOG: ADD button clicked - reps: '$repsText', weight: '$weightText'")
-
-                        // Validate inputs
-                        val reps = repsText.toIntOrNull()
-                        val weight = weightText.toFloatOrNull()
-
-                        when {
-                            reps == null || reps <= 0 -> {
-                                repsError = true
-                                println("🎯 DIALOG: Reps validation failed")
-                            }
-                            weight == null || weight < 0 -> {
-                                weightError = true
-                                println("🎯 DIALOG: Weight validation failed")
-                            }
-                            else -> {
-                                println("🎯 DIALOG: Validation passed - submitting data")
-                                val data = SetPerformanceData(
-                                    repsPerformed = reps,
-                                    weightUsed = weight
-                                )
-                                onDataEntered(data)
-                            }
+                // 🆕 NEW: Action buttons - different layout for edit vs new entry
+                if (isEditMode && onCancel != null) {
+                    // Edit mode: Show both Cancel and Update buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        // Cancel button
+                        OutlinedButton(
+                            onClick = {
+                                println("🎯 DIALOG: Cancel button clicked in edit mode")
+                                onCancel()
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = PrimaryCoral
+                            )
+                        ) {
+                            Text(
+                                text = "Cancel",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium
+                            )
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryCoral
-                    )
-                ) {
-                    Text(
-                        text = "ADD",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+
+                        // Update button
+                        Button(
+                            onClick = {
+                                println("🎯 DIALOG: Update button clicked - reps: '$repsText', weight: '$weightText'")
+
+                                // Validate inputs
+                                val reps = repsText.toIntOrNull()
+                                val weight = weightText.toFloatOrNull()
+
+                                when {
+                                    reps == null || reps <= 0 -> {
+                                        repsError = true
+                                        println("🎯 DIALOG: Reps validation failed")
+                                    }
+                                    weight == null || weight < 0 -> {
+                                        weightError = true
+                                        println("🎯 DIALOG: Weight validation failed")
+                                    }
+                                    else -> {
+                                        println("🎯 DIALOG: Validation passed - updating data")
+                                        val data = SetPerformanceData(
+                                            repsPerformed = reps,
+                                            weightUsed = weight
+                                        )
+                                        onDataEntered(data)
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = PrimaryCoral
+                            )
+                        ) {
+                            Text(
+                                text = "Update",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                } else {
+                    // New entry mode: Show only ADD button (no cancel)
+                    Button(
+                        onClick = {
+                            println("🎯 DIALOG: ADD button clicked - reps: '$repsText', weight: '$weightText'")
+
+                            // Validate inputs
+                            val reps = repsText.toIntOrNull()
+                            val weight = weightText.toFloatOrNull()
+
+                            when {
+                                reps == null || reps <= 0 -> {
+                                    repsError = true
+                                    println("🎯 DIALOG: Reps validation failed")
+                                }
+                                weight == null || weight < 0 -> {
+                                    weightError = true
+                                    println("🎯 DIALOG: Weight validation failed")
+                                }
+                                else -> {
+                                    println("🎯 DIALOG: Validation passed - submitting data")
+                                    val data = SetPerformanceData(
+                                        repsPerformed = reps,
+                                        weightUsed = weight
+                                    )
+                                    onDataEntered(data)
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryCoral
+                        )
+                    ) {
+                        Text(
+                            text = "ADD",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
