@@ -154,3 +154,6 @@
 * **Standing Calf Raise (Isolation):** 4×12–15 reps – Rest 60s (Calves).
 
 *(Optional:* Superset Leg Extensions with Leg Curls (agonist/antagonist) to increase intensity.\*)
+
+emulator -avd Medium_Phone_API_36.0
+/home/agond/Android/Sdk/emulator/emulator
