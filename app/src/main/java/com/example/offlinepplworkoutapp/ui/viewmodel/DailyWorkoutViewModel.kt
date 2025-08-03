@@ -90,7 +90,12 @@ class DailyWorkoutViewModel(
             println("🎯 VIEWMODEL: Starting workout creation process...")
 
             try {
-                repository.createTodaysWorkout().collect { exercises ->
+                // 🔧 FIX: Use debug date if available, otherwise use current date
+                val targetDate = _debugDate.value ?: _currentDate.value
+                println("🎯 VIEWMODEL: Creating workout for date: $targetDate (debug: ${_debugDate.value != null})")
+
+                // Use the date-specific method instead of the hardcoded today method
+                repository.createWorkoutForDate(targetDate).collect { exercises ->
                     println("🎯 VIEWMODEL: Received ${exercises.size} exercises from repository")
                     _todaysWorkout.value = exercises
                     _isLoading.value = false
@@ -110,8 +115,9 @@ class DailyWorkoutViewModel(
                             // Force populate exercises through the database
                             PPLWorkoutDatabase.forcePopulateExercises()
 
-                            // Retry workout creation after populating exercises
-                            repository.createTodaysWorkout().collect { exercises ->
+                            // 🔧 FIX: Retry with the correct date
+                            val targetDate = _debugDate.value ?: _currentDate.value
+                            repository.createWorkoutForDate(targetDate).collect { exercises ->
                                 println("🎯 VIEWMODEL: RETRY - Received ${exercises.size} exercises from repository")
                                 _todaysWorkout.value = exercises
                                 _isLoading.value = false
@@ -271,6 +277,26 @@ class DailyWorkoutViewModel(
             if (currentExerciseId != null) {
                 repository.updateExerciseTime(currentExerciseId, totalSeconds)
                 stopCurrentTimer()
+            }
+        }
+    }
+
+    // Method to refresh today's workout data
+    fun refreshTodaysWorkout() {
+        println("🔄 VIEWMODEL: refreshTodaysWorkout() called")
+        viewModelScope.launch {
+            _isLoading.value = true
+
+            // Use debug date if available, otherwise use current date
+            val targetDate = _debugDate.value ?: _currentDate.value
+            println("🔄 VIEWMODEL: Refreshing workout for date: $targetDate")
+
+            // Fetch latest workout data from repository
+            repository.getWorkoutForDateWithoutCreating(targetDate).collect { exercises ->
+                _todaysWorkout.value = exercises
+                _isLoading.value = false
+                updateCompletionProgress(exercises)
+                println("🔄 VIEWMODEL: Refreshed workout data, found ${exercises.size} exercises")
             }
         }
     }
