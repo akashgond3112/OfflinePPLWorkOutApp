@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,6 +76,9 @@ import com.example.offlinepplworkoutapp.ui.theme.TextPrimary
 import com.example.offlinepplworkoutapp.ui.theme.TextSecondary
 import com.example.offlinepplworkoutapp.ui.viewmodel.ExerciseDetailViewModel
 import com.example.offlinepplworkoutapp.ui.viewmodel.ExerciseDetailViewModelFactory
+import com.example.offlinepplworkoutapp.util.HapticFeedbackHelper
+import com.example.offlinepplworkoutapp.util.NotificationHelper
+import com.example.offlinepplworkoutapp.util.rememberHapticFeedback
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,6 +106,33 @@ fun ExerciseDetailScreen(
     // 🚀 NEW: Rest timer state
     val restTimer by viewModel.restTimer.collectAsState()
     val isRestActive by viewModel.isRestActive.collectAsState()
+    val restMinuteMilestoneReached by viewModel.restMinuteMilestoneReached.collectAsState()
+
+    // Get context for notification and haptic feedback
+    val context = LocalContext.current
+    val notificationHelper = remember { NotificationHelper(context) }
+
+    // 📳 NEW: Add haptic feedback helper
+    val hapticFeedback = rememberHapticFeedback()
+
+    // 🔔 NEW: Notification for 1-minute rest milestone
+    LaunchedEffect(restMinuteMilestoneReached) @androidx.annotation.RequiresPermission(android.Manifest.permission.VIBRATE) {
+        if (restMinuteMilestoneReached && isRestActive) {
+            println("🔔 NOTIFICATION: Rest milestone reached, showing notification")
+            notificationHelper.showRestTimerNotification(workoutEntry.exerciseName)
+
+            // 📳 NEW: Add haptic feedback for milestone reached
+            hapticFeedback.performHapticFeedback(HapticFeedbackHelper.FeedbackType.SUCCESS)
+        }
+    }
+
+    // 🔔 NEW: Reset notification when rest timer stops
+    LaunchedEffect(isRestActive) {
+        if (!isRestActive) {
+            println("🔔 NOTIFICATION: Rest timer stopped, cancelling notifications")
+            notificationHelper.cancelRestTimerNotification()
+        }
+    }
 
     // 🚀 NEW: Phase 2.1.2 - Set data entry dialog state
     val showSetDataDialog by viewModel.showSetDataDialog.collectAsState()
@@ -319,6 +350,9 @@ fun ModernSetTimerCard(
     onEditSet: () -> Unit, // 🆕 NEW: Edit action
     onDeleteSet: (() -> Unit)? = null // 🆕 NEW: Delete action
 ) {
+    // 📳 NEW: Add haptic feedback helper
+    val hapticFeedback = rememberHapticFeedback()
+
     // Animation for card state changes
     val animatedElevation by animateDpAsState(
         targetValue = when {
@@ -565,7 +599,11 @@ fun ModernSetTimerCard(
 
                             // 🆕 NEW: Edit button for completed sets
                             IconButton(
-                                onClick = onEditSet,
+                                onClick = @androidx.annotation.RequiresPermission(android.Manifest.permission.VIBRATE) {
+                                    // 📳 NEW: Add haptic feedback for edit action
+                                    hapticFeedback.performHapticFeedback(HapticFeedbackHelper.FeedbackType.BUTTON_PRESS)
+                                    onEditSet()
+                                },
                                 modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
@@ -592,6 +630,9 @@ fun ModernSetTimerCard(
                         // 🚀 NEW: Phase 2.1.2 - Just stop timer, dialog will handle completion
                         Button(
                             onClick = {
+                                // 📳 NEW: Add haptic feedback when completing a set
+                                hapticFeedback.performHapticFeedback(HapticFeedbackHelper.FeedbackType.SUCCESS)
+
                                 // 🔧 FIX: Call onStopTimer to stop the timer and trigger the dialog
                                 onStopTimer()
                                 println("🔧 DEBUG: Complete Set button clicked - stopping timer")
@@ -614,7 +655,11 @@ fun ModernSetTimerCard(
                     else -> {
                         // Ready to start
                         Button(
-                            onClick = onStartTimer,
+                            onClick = {
+                                // 📳 NEW: Add haptic feedback when starting a set timer
+                                hapticFeedback.performHapticFeedback(HapticFeedbackHelper.FeedbackType.TIMER_START_STOP)
+                                onStartTimer()
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = PrimaryCoral
