@@ -8,13 +8,10 @@ import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
 import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
 import com.example.offlinepplworkoutapp.utils.WorkoutTimer
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -238,36 +235,6 @@ class DailyWorkoutViewModel(
         }
     }
 
-    fun handleExerciseToggle(exerciseId: Int, currentlyCompleted: Boolean): ToggleAction {
-        val currentTimerExercise = workoutTimer.getCurrentExerciseId()
-
-        return when {
-            // Starting an exercise (not completed -> completed)
-            !currentlyCompleted -> {
-                startExerciseTimer(exerciseId)
-                ToggleAction.START_TIMER
-            }
-            // Trying to reset a completed exercise -> show warning
-            currentlyCompleted -> {
-                ToggleAction.SHOW_RESET_WARNING
-            }
-            else -> ToggleAction.NORMAL_TOGGLE
-        }
-    }
-
-    fun resetExerciseToStart(exerciseId: Int) {
-        viewModelScope.launch {
-            // Reset exercise to not completed and clear time
-            repository.updateExerciseDetails(exerciseId, sets = 0, reps = 0, isCompleted = false)
-            repository.updateExerciseTime(exerciseId, 0)
-
-            // Stop any running timer
-            if (workoutTimer.getCurrentExerciseId() == exerciseId) {
-                stopCurrentTimer()
-            }
-        }
-    }
-
     fun formatTime(seconds: Int): String = workoutTimer.formatTime(seconds)
 
     fun saveTotalTimeSpent(totalSeconds: Int) {
@@ -301,23 +268,6 @@ class DailyWorkoutViewModel(
         }
     }
 
-    // Function to refresh data after database reset
-    fun refreshData() {
-        // Reset all state variables to initial state
-        _isLoading.value = true
-        _todaysWorkout.value = emptyList()
-        _completionProgress.value = 0f
-        _debugDate.value = null
-        _currentDate.value = dateFormat.format(Date())
-
-        // Stop any running timers
-        stopCurrentTimer()
-        workoutTimer.reset()
-
-        // Reload today's workout from scratch
-        loadTodaysWorkout()
-    }
-
     // Force complete refresh - more aggressive reset for cache clearing
     fun forceCompleteRefresh() {
         // Cancel any existing data collection jobs
@@ -349,31 +299,6 @@ class DailyWorkoutViewModel(
     // ===========================================
 
     /**
-     * Create today's workout using template system - NEW APPROACH
-     * This will replace the legacy createTodaysWorkout() method
-     */
-    fun createTodaysWorkoutFromTemplate() {
-        println("🎯 VIEWMODEL: createTodaysWorkoutFromTemplate() called")
-        viewModelScope.launch {
-            _isLoading.value = true
-            println("🎯 VIEWMODEL: Starting template-based workout creation...")
-
-            try {
-                repository.createTodaysWorkoutFromTemplate().collect { exercises ->
-                    println("🎯 VIEWMODEL: Received ${exercises.size} exercises from template")
-                    _todaysWorkout.value = exercises
-                    _isLoading.value = false
-                    updateCompletionProgress(exercises)
-                    println("🎯 VIEWMODEL: Template-based workout creation completed successfully")
-                }
-            } catch (e: Exception) {
-                println("🎯 VIEWMODEL ERROR: Failed to create workout from template - ${e.message}")
-                _isLoading.value = false
-            }
-        }
-    }
-
-    /**
      * Create workout from specific template
      */
     fun createWorkoutFromTemplate(templateId: Int, date: String = dateFormat.format(Date())) {
@@ -403,18 +328,6 @@ class DailyWorkoutViewModel(
             repository.getAvailableTemplates().collect { templates ->
                 _availableTemplates.value = templates
                 println("🎯 VIEWMODEL: Loaded ${templates.size} available templates")
-            }
-        }
-    }
-
-    /**
-     * Get templates by category (Push/Pull/Legs)
-     */
-    fun getTemplatesByCategory(category: String) {
-        viewModelScope.launch {
-            repository.getTemplatesByCategory(category).collect { templates ->
-                _availableTemplates.value = templates
-                println("🎯 VIEWMODEL: Loaded ${templates.size} templates for category: $category")
             }
         }
     }
