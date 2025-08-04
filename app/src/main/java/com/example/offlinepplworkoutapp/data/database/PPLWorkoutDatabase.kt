@@ -106,7 +106,7 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
         private var INSTANCE: PPLWorkoutDatabase? = null
 
         // Migration from version 6 to 7 - Add WorkoutTemplate and TemplateExercise tables
-        val MIGRATION_6_7 = object : Migration(6, 7) {
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 println("🔄 MIGRATION: Starting migration from v6 to v7...")
 
@@ -154,7 +154,7 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
         }
 
         // 🚀 NEW: Migration from version 7 to 8 - Add set performance data fields
-        val MIGRATION_7_8 = object : Migration(7, 8) {
+        private val MIGRATION_7_8 = object : Migration(7, 8) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 println("🔄 MIGRATION: Starting migration from v7 to v8...")
 
@@ -178,7 +178,7 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
         }
 
         // 🚀 NEW: Migration from version 8 to 9 - Handle non-nullable fields in SetEntry
-        val MIGRATION_8_9 = object : Migration(8, 9) {
+        private val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 println("🔄 MIGRATION: Starting migration from v8 to v9...")
 

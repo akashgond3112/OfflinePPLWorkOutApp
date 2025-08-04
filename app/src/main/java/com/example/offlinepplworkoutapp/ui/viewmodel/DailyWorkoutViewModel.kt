@@ -7,7 +7,6 @@ import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
 import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
 import com.example.offlinepplworkoutapp.utils.WorkoutTimer
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +22,6 @@ class DailyWorkoutViewModel(
 
     // Timer functionality
     private val workoutTimer = WorkoutTimer()
-    private var timerJob: Job? = null
 
     val timerSeconds = workoutTimer.elapsedSeconds
     val isTimerRunning = workoutTimer.isTimerRunning
@@ -223,7 +221,7 @@ class DailyWorkoutViewModel(
         workoutTimer.startTimer(exerciseId)
     }
 
-    fun stopCurrentTimer() {
+    private fun stopCurrentTimer() {
         val currentExerciseId = workoutTimer.getCurrentExerciseId()
         val timeSpent = workoutTimer.stopTimer()
 
@@ -301,7 +299,7 @@ class DailyWorkoutViewModel(
     /**
      * Create workout from specific template
      */
-    fun createWorkoutFromTemplate(templateId: Int, date: String = dateFormat.format(Date())) {
+    private fun createWorkoutFromTemplate(templateId: Int, date: String = dateFormat.format(Date())) {
         println("🎯 VIEWMODEL: createWorkoutFromTemplate() called - templateId: $templateId, date: $date")
         viewModelScope.launch {
             _isLoading.value = true
