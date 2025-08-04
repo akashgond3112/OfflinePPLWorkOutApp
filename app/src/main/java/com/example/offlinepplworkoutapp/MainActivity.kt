@@ -1,9 +1,14 @@
 package com.example.offlinepplworkoutapp
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -32,6 +37,7 @@ import com.example.offlinepplworkoutapp.ui.screens.ExerciseDetailScreen
 import com.example.offlinepplworkoutapp.ui.theme.OfflinePPLWorkOutAppTheme
 import com.example.offlinepplworkoutapp.ui.viewmodel.DailyWorkoutViewModel
 import com.example.offlinepplworkoutapp.ui.viewmodel.DailyWorkoutViewModelFactory
+import com.example.offlinepplworkoutapp.util.NotificationHelper
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -41,6 +47,20 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var database: PPLWorkoutDatabase
     private lateinit var repository: WorkoutRepository
+
+    // Initialize notification helper
+    private lateinit var notificationHelper: NotificationHelper
+
+    // Request notification permission launcher for Android 13+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            println("🔔 NOTIFICATION: Permission granted")
+        } else {
+            println("🔔 NOTIFICATION: Permission denied")
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +74,21 @@ class MainActivity : ComponentActivity() {
             workoutTemplateDao = database.workoutTemplateDao(),
             templateExerciseDao = database.templateExerciseDao()
         )
+
+        // Initialize notification helper and request permissions if needed
+        notificationHelper = NotificationHelper(this)
+        notificationHelper.createChannels()
+
+        // Request notification permission on Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                println("🔔 NOTIFICATION: Requesting notification permission")
+            } else {
+                println("🔔 NOTIFICATION: Permission already granted")
+            }
+        }
 
         enableEdgeToEdge()
         setContent {
@@ -79,6 +114,26 @@ fun MainScreen(
     var showTemplateSelection by remember { mutableStateOf(false) }
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val coroutineScope = rememberCoroutineScope()
+
+    // 🔄 NEW: Back handler to override back button behavior
+    BackHandler(
+        enabled = selectedExercise != null || showTemplateSelection,
+        onBack = {
+            when {
+                selectedExercise != null -> {
+                    // Return to main workout screen when back is pressed in exercise detail
+                    println("🔙 NAVIGATION: Back button pressed in exercise detail, returning to main screen")
+                    viewModel.refreshTodaysWorkout() // Refresh data
+                    selectedExercise = null
+                }
+                showTemplateSelection -> {
+                    // Return from template selection
+                    println("🔙 NAVIGATION: Back button pressed in template selection, returning to main screen")
+                    showTemplateSelection = false
+                }
+            }
+        }
+    )
 
     // Add reset confirmation dialog
     if (showResetConfirmation) {
