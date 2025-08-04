@@ -310,11 +310,11 @@ class WorkoutRepository(
     }
 
     // New methods for set-based operations
-    suspend fun getSetsForWorkoutEntry(workoutEntryId: Int): Flow<List<com.example.offlinepplworkoutapp.data.entity.SetEntry>> {
+    suspend fun getSetsForWorkoutEntry(workoutEntryId: Int): Flow<List<SetEntry>> {
         return setEntryDao.getSetsForWorkoutEntry(workoutEntryId)
     }
 
-    suspend fun getSetsForWorkoutEntrySync(workoutEntryId: Int): List<com.example.offlinepplworkoutapp.data.entity.SetEntry> {
+    suspend fun getSetsForWorkoutEntrySync(workoutEntryId: Int): List<SetEntry> {
         return setEntryDao.getSetsForWorkoutEntrySync(workoutEntryId)
     }
 
