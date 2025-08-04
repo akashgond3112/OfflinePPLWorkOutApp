@@ -62,12 +62,13 @@ class ExerciseDetailViewModel(
     private val _pendingSetData = MutableStateFlow<Pair<Int, Int>?>(null) // (setIndex, setId)
     val pendingSetData: StateFlow<Pair<Int, Int>?> = _pendingSetData.asStateFlow()
 
+    // 🔔 NEW: State flow to signal when 1-minute rest milestone is reached
+    private val _restMinuteMilestoneReached = MutableStateFlow(false)
+    val restMinuteMilestoneReached: StateFlow<Boolean> = _restMinuteMilestoneReached.asStateFlow()
+
     private var timerJob: Job? = null
     private var restTimerJob: Job? = null
     private var currentSetId: Int? = null
-
-    // 🔧 NEW: Track current rest session start time
-    private var restStartTime: Long = 0L
 
     init {
         loadSetsFromDatabase()
@@ -413,6 +414,14 @@ class ExerciseDetailViewModel(
         _totalExerciseTime.value = totalTime
 
         println("🕐 TOTAL TIME DEBUG: _totalExerciseTime.value is now: ${_totalExerciseTime.value}")
+
+        // 🚀 NEW: Update totalSecondsSpent in WorkoutEntry database record
+        val totalSeconds = (totalTime / 1000).toInt()
+        viewModelScope.launch {
+            println("🕐 TOTAL TIME DEBUG: Updating WorkoutEntry.totalSecondsSpent to ${totalSeconds}s")
+            repository.updateExerciseTime(workoutEntry.id, totalSeconds)
+            println("🕐 TOTAL TIME DEBUG: Database updated with new exercise time")
+        }
     }
 
     // 🚀 NEW: Rest timer functionality
@@ -440,6 +449,12 @@ class ExerciseDetailViewModel(
                 delay(1000) // Update every second
                 elapsedRestTime += 1000
                 _restTimer.value = elapsedRestTime
+
+                // 🔔 NEW: Trigger milestone notification at 1 minute
+                if (elapsedRestTime >= 60000 && !_restMinuteMilestoneReached.value) {
+                    _restMinuteMilestoneReached.value = true
+                    println("🔔 REST MILESTONE: 1 minute of rest reached")
+                }
 
                 println("⏱️ REST TIMER: ${elapsedRestTime / 1000}s (Live) - _restTimer.value = ${_restTimer.value}")
             }
