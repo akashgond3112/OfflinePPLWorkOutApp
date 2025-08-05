@@ -435,6 +435,10 @@ class ExerciseDetailViewModel(
             return
         }
 
+        // Reset milestone flag when starting a new rest timer
+        _restMinuteMilestoneReached.value = false
+        println("🔔 REST DEBUG: Reset milestone notification flag")
+
         println("🚀 REST DEBUG: Setting _isRestActive to true")
         _isRestActive.value = true
         val restStartTime = System.currentTimeMillis()
