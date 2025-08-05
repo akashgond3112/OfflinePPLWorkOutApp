@@ -165,12 +165,12 @@ This document outlines the migration path from the current simplified architectu
   - Automatic notification cancellation when rest ends ✅
 
 - [x] 2.3.4 Additional UX enhancements ✅
-  - Proper back button navigation handling ✅
-  - System back button override to prevent accidental app exit ✅
-  - Consistent navigation between screens ✅
-  - [ ] Haptic feedback for important actions
-  - [ ] Animation transitions between screens
-  - [ ] Accessibility improvements
+  - [x] Proper back button navigation handling ✅
+  - [x] System back button override to prevent accidental app exit ✅
+  - [x] Consistent navigation between screens ✅
+  - [x] Haptic feedback for important actions ✅
+  - [x] Animation transitions between screens ✅
+  - [x] Accessibility improvements
 
 ---
 
@@ -181,11 +181,54 @@ This document outlines the migration path from the current simplified architectu
 - [ ] 3.1.4 Equipment requirements display
 - [ ] 3.1.5 Exercise difficulty indicators
 
-### 3.2 Calendar & History View 📅 **PLANNED**
-- [ ] 3.2.1 Calendar navigation
-- [ ] 3.2.2 Historical workout data view
-- [ ] 3.2.3 Progress tracking over time
-- [ ] 3.2.4 Workout completion statistics
+### 3.2 Calendar & History View 📅 **NEXT PRIORITY**
+- [ ] 3.2.1 Bottom Navigation Implementation
+  - [ ] Add BottomNavigationView with Home, History, Performance, and Settings tabs
+  - [ ] Create navigation graph for new sections
+  - [ ] Implement navigation controller logic
+  - [ ] Design icons for bottom navigation items
+
+- [ ] 3.2.2 History UI Components
+  - [ ] Calendar view component with date selection
+  - [ ] Monthly/weekly toggle view options
+  - [ ] Date indicators for completed workouts
+  - [ ] Color-coding for workout types (Push/Pull/Legs)
+  
+- [ ] 3.2.3 History Data Access Layer
+  - [ ] Create HistoryRepository class
+  - [ ] Add DAO methods for retrieving historical workout data
+  - [ ] Implement filtering by date ranges and workout types
+  - [ ] Create appropriate DTOs for history display
+
+- [ ] 3.2.4 Workout History Screen
+  - [ ] Design workout history list item layout
+  - [ ] Create workout history list screen
+  - [ ] Display past workouts with date, type, and completion metrics
+  - [ ] Implement sorting and filtering options
+  
+- [ ] 3.2.5 Historical Workout Detail View
+  - [ ] Design historical workout detail screen
+  - [ ] Display exercise list with performance metrics
+  - [ ] Show time spent, sets completed, and volume information
+  - [ ] Allow navigation to exercise detail history
+
+- [ ] 3.2.6 Exercise History & Progress Tracking
+  - [ ] Design exercise history screen showing all past performances
+  - [ ] Implement progress graphs for weights and reps over time
+  - [ ] Show performance trends (improving, plateaued, declining)
+  - [ ] Add personal record indicators
+
+- [ ] 3.2.7 Performance Analytics
+  - [ ] Create workout volume calculations
+  - [ ] Implement workout frequency tracking
+  - [ ] Design weekly/monthly summary views
+  - [ ] Add muscle group focus distribution charts
+
+- [ ] 3.2.8 Data Export & Sharing
+  - [ ] Add export options for workout history
+  - [ ] Implement sharing functionality for workouts or progress
+  - [ ] Create printable/shareable workout reports
+  - [ ] Design achievement/milestone sharing cards
 
 ---
 
