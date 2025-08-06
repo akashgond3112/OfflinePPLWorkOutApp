@@ -1,4 +1,4 @@
-package com.example.offlinepplworkoutapp.util
+package com.example.offlinepplworkoutapp.utils
 
 import android.app.NotificationChannel
 import android.app.NotificationManager

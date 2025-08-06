@@ -1,4 +1,4 @@
-package com.example.offlinepplworkoutapp.util
+package com.example.offlinepplworkoutapp.utils
 
 import android.Manifest
 import android.content.Context
@@ -37,7 +37,8 @@ class HapticFeedbackHelper(private val context: Context) {
         SUCCESS,            // Medium click with pattern for success actions (like completing a set)
         ERROR,              // Error pattern (like validation error)
         TIMER_START_STOP,   // Special pattern for timer start/stop
-        HEAVY_CLICK         // Strong click for important actions
+        HEAVY_CLICK,         // Strong click for important actions
+        RESET               // Reset action, can be used for resetting timers or states
     }
 
     /**
@@ -91,6 +92,15 @@ class HapticFeedbackHelper(private val context: Context) {
                     vibrator.vibrate(50)
                 }
             }
+            FeedbackType.RESET -> {
+                // Triple pattern for reset actions
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 30, 40, 30, 40, 30), -1))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(longArrayOf(0, 30, 40, 30, 40, 30), -1)
+                }
+            }
         }
     }
 
@@ -115,6 +125,9 @@ class HapticFeedbackHelper(private val context: Context) {
             }
             FeedbackType.HEAVY_CLICK -> {
                 view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+            }
+            FeedbackType.RESET -> {
+                view.performHapticFeedback(HapticFeedbackConstants.GESTURE_START)
             }
         }
     }
