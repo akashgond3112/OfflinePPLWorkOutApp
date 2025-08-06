@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
@@ -57,7 +57,7 @@ fun TemplateSelectionScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
                     }
@@ -227,7 +227,7 @@ fun TemplateCard(
             }
 
             // Last used info
-            if (template.lastUsedDate != null) {
+            if (template.lastUsedDate.isNotEmpty()) {
                 Text(
                     text = "Last used: ${template.lastUsedDate}",
                     style = MaterialTheme.typography.bodySmall,

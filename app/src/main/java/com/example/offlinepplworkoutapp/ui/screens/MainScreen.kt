@@ -13,6 +13,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise
 import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
+import com.example.offlinepplworkoutapp.ui.screens.exercisedetails.ExerciseDetailScreen
 import com.example.offlinepplworkoutapp.ui.viewmodel.DailyWorkoutViewModel
 import com.example.offlinepplworkoutapp.ui.viewmodel.DailyWorkoutViewModelFactory
 import kotlinx.coroutines.launch
