@@ -355,6 +355,63 @@ class ExerciseDetailViewModel(
         }
     }
 
+    // 🔄 NEW: Reset a completed set
+    fun resetSet(setIndex: Int) {
+        println("🔄 RESET: resetSet() called for index $setIndex")
+
+        viewModelScope.launch {
+            try {
+                val currentSets = repository.getSetsForWorkoutEntrySync(workoutEntry.id)
+
+                if (setIndex < currentSets.size) {
+                    val setToReset = currentSets[setIndex]
+
+                    if (setToReset.isCompleted) {
+                        println("🔄 RESET: Resetting set #${setToReset.setNumber} (ID: ${setToReset.id})")
+
+                        // Reset set in database - clear completion status and performance data
+                        repository.updateSetProgressWithPerformanceData(
+                            setId = setToReset.id,
+                            isCompleted = false,
+                            elapsedTimeSeconds = 0,
+                            repsPerformed = 0,  // Changed from null to 0
+                            weightUsed = 0f     // Changed from null to 0f
+                        )
+
+                        // Update local state
+                        val updatedTimers = _setTimers.value.toMutableList()
+                        updatedTimers[setIndex] = updatedTimers[setIndex].copy(
+                            isCompleted = false,
+                            elapsedTime = 0L
+                        )
+                        _setTimers.value = updatedTimers
+
+                        // Update completed sets count
+                        _completedSets.value = _completedSets.value - 1
+
+                        // Update exercise completion status
+                        repository.updateExerciseCompletionFromSets(workoutEntry.id)
+                        _isExerciseCompleted.value = false
+
+                        // Update active set index if needed
+                        if (_activeSetIndex.value > setIndex) {
+                            _activeSetIndex.value = setIndex
+                        }
+
+                        // Update total exercise time
+                        updateTotalExerciseTime()
+
+                        println("🔄 RESET: Successfully reset set at index $setIndex")
+                    } else {
+                        println("🔄 RESET ERROR: Cannot reset set - not completed")
+                    }
+                }
+            } catch (e: Exception) {
+                println("🔄 RESET ERROR: Failed to reset set - ${e.message}")
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
