@@ -3,6 +3,7 @@ package com.example.offlinepplworkoutapp.data.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.ForeignKey
+import androidx.room.Index
 
 /**
  * Template Exercise Junction Entity - Links exercises to workout templates
@@ -25,6 +26,10 @@ import androidx.room.ForeignKey
             childColumns = ["exerciseId"],
             onDelete = ForeignKey.CASCADE
         )
+    ],
+    indices = [
+        Index(value = ["templateId"]),
+        Index(value = ["exerciseId"])
     ]
 )
 data class TemplateExercise(
