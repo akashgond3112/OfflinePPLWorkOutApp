@@ -10,9 +10,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
-import com.example.offlinepplworkoutapp.ui.screens.MainScreen
+import com.example.offlinepplworkoutapp.ui.screens.AppNavigationContainer
 import com.example.offlinepplworkoutapp.ui.theme.OfflinePPLWorkOutAppTheme
-import com.example.offlinepplworkoutapp.util.NotificationHelper
+import com.example.offlinepplworkoutapp.utils.NotificationHelper
 
 private const val IS_DEBUG_MODE = true
 
@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             OfflinePPLWorkOutAppTheme {
-                MainScreen(repository = repository)
+                AppNavigationContainer(repository = repository)
             }
         }
     }
