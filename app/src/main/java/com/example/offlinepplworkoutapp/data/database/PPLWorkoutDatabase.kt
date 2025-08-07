@@ -107,11 +107,11 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
 
         // Migration from version 6 to 7 - Add WorkoutTemplate and TemplateExercise tables
         private val MIGRATION_6_7 = object : Migration(6, 7) {
-            override fun migrate(database: SupportSQLiteDatabase) {
+            override fun migrate(db: SupportSQLiteDatabase) {
                 println("🔄 MIGRATION: Starting migration from v6 to v7...")
 
                 // Create WorkoutTemplate table
-                database.execSQL(
+                db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `workout_templates` (
                         `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -129,7 +129,7 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
                 )
 
                 // Create TemplateExercise table
-                database.execSQL(
+                db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `template_exercises` (
                         `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -155,18 +155,18 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
 
         // 🚀 NEW: Migration from version 7 to 8 - Add set performance data fields
         private val MIGRATION_7_8 = object : Migration(7, 8) {
-            override fun migrate(database: SupportSQLiteDatabase) {
+            override fun migrate(db: SupportSQLiteDatabase) {
                 println("🔄 MIGRATION: Starting migration from v7 to v8...")
 
                 // Add reps_performed column to set_entries table
-                database.execSQL(
+                db.execSQL(
                     """
                     ALTER TABLE set_entries ADD COLUMN reps_performed INTEGER
                 """.trimIndent()
                 )
 
                 // Add weight_used column to set_entries table
-                database.execSQL(
+                db.execSQL(
                     """
                     ALTER TABLE set_entries ADD COLUMN weight_used REAL
                 """.trimIndent()
@@ -179,11 +179,11 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
 
         // 🚀 NEW: Migration from version 8 to 9 - Handle non-nullable fields in SetEntry
         private val MIGRATION_8_9 = object : Migration(8, 9) {
-            override fun migrate(database: SupportSQLiteDatabase) {
+            override fun migrate(db: SupportSQLiteDatabase) {
                 println("🔄 MIGRATION: Starting migration from v8 to v9...")
 
                 // Create a temporary table matching the expected schema (without unwanted defaults)
-                database.execSQL("""
+                db.execSQL("""
                 CREATE TABLE IF NOT EXISTS `set_entries_temp` (
                     `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                     `workout_entry_id` INTEGER NOT NULL,
@@ -199,7 +199,7 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
 
                 // Copy data - your IFNULL logic here is GOOD because it ensures non-null values
                 // are inserted into the new table which now correctly lacks DEFAULT constraints.
-                database.execSQL("""
+                db.execSQL("""
                 INSERT INTO set_entries_temp (
                     id, 
                     workout_entry_id, 
@@ -223,13 +223,13 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
             """.trimIndent())
 
                 // Drop the old table
-                database.execSQL("DROP TABLE set_entries")
+                db.execSQL("DROP TABLE set_entries")
 
                 // Rename the temporary table to replace the original
-                database.execSQL("ALTER TABLE set_entries_temp RENAME TO set_entries")
+                db.execSQL("ALTER TABLE set_entries_temp RENAME TO set_entries")
 
                 // 2. Explicitly create the index Room expects
-                database.execSQL("CREATE INDEX IF NOT EXISTS `index_set_entries_workout_entry_id` ON `set_entries` (`workout_entry_id`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_set_entries_workout_entry_id` ON `set_entries` (`workout_entry_id`)")
 
                 println("🔄 MIGRATION: Successfully migrated set_entries to new schema with non-nullable fields and index.")
             }
@@ -254,22 +254,6 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
 
                 INSTANCE = instance
                 instance
-            }
-        }
-
-        // Reset database method - clears workout progress while preserving exercise definitions
-        suspend fun resetDatabase() {
-            INSTANCE?.let { database ->
-                // Clear all user workout data directly (we're already in a suspend function)
-                database.workoutDayDao().deleteAll()
-                database.workoutEntryDao().deleteAll()
-                database.setEntryDao().deleteAll()
-
-                // Force close and invalidate all active connections to clear cache
-                database.clearAllTables()
-                database.invalidationTracker.refreshVersionsAsync()
-
-                // Note: We're not deleting exercises since that would remove the exercise library
             }
         }
 
