@@ -1,5 +1,7 @@
 package com.example.offlinepplworkoutapp.ui.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -11,21 +13,24 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
-import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.offlinepplworkoutapp.R
+import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
 import com.example.offlinepplworkoutapp.ui.navigation.Screen
+import com.example.offlinepplworkoutapp.ui.screens.history.HistoryScreen
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppNavigationContainer(repository: WorkoutRepository) {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val database = PPLWorkoutDatabase.getDatabase(context)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -75,13 +80,28 @@ fun AppNavigationContainer(repository: WorkoutRepository) {
                 HomeScreen(repository)
             }
             composable(Screen.History.route) {
-                HistoryScreen()
+                // Use our new detailed HistoryScreen implementation
+                HistoryScreen(
+                    database = database,
+                    onBackClicked = {
+                        // Navigate back to home when back is clicked in history
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
             }
             composable(Screen.Performance.route) {
-                PerformanceScreen()
+                // Use existing placeholder implementation
+                com.example.offlinepplworkoutapp.ui.screens.PerformanceScreen()
             }
             composable(Screen.Settings.route) {
-                SettingsScreen()
+                // Use existing placeholder implementation
+                com.example.offlinepplworkoutapp.ui.screens.SettingsScreen()
             }
         }
     }
