@@ -14,13 +14,13 @@ This document outlines the migration path from the current simplified architectu
 - [x] **template_exercises** table: Junction table linking templates to exercises ✅
 
 ### Features Working ✅
-- [x] PPL workout creation based on day of week
-- [x] **Template-based workout creation system** ✅
-- [x] Exercise detail screens with set progression
-- [x] Individual set timing and completion tracking
-- [x] Cross-exercise contamination fixed (sets isolated per exercise)
-- [x] Database reset functionality for development
-- [x] Timer functionality with start/stop per set
+- [x] PPL workout creation based on day of week ✅
+- [x] Template-based workout creation system ✅
+- [x] Exercise detail screens with set progression ✅
+- [x] Individual set timing and completion tracking ✅
+- [x] Cross-exercise contamination fixed (sets isolated per exercise) ✅
+- [x] Database reset functionality for development ✅
+- [x] Timer functionality with start/stop per set ✅
 - [x] Enhanced exercise library with rich metadata (34+ exercises)
 - [x] Automatic template population on database creation
 - [x] Template selection and creation methods
@@ -181,54 +181,111 @@ This document outlines the migration path from the current simplified architectu
 - [ ] 3.1.4 Equipment requirements display
 - [ ] 3.1.5 Exercise difficulty indicators
 
-### 3.2 Calendar & History View 📅 **NEXT PRIORITY**
-- [ ] 3.2.1 Bottom Navigation Implementation
-  - [ ] Add BottomNavigationView with Home, History, Performance, and Settings tabs
-  - [ ] Create navigation graph for new sections
-  - [ ] Implement navigation controller logic
-  - [ ] Design icons for bottom navigation items
+### 3.1 Calendar & History View 📅 **NEXT PRIORITY**
+  - [x] Bottom Navigation Implementation ✅ **COMPLETED**
+  - [x] Add BottomNavigationView with Home, History, Performance, and Settings tabs ✅
+  - [x] Create navigation graph for new sections ✅
+  - [x] Implement navigation controller logic ✅
+  - [x] Design icons for bottom navigation items ✅
 
-- [ ] 3.2.2 History UI Components
-  - [ ] Calendar view component with date selection
-  - [ ] Monthly/weekly toggle view options
-  - [ ] Date indicators for completed workouts
-  - [ ] Color-coding for workout types (Push/Pull/Legs)
-  
-- [ ] 3.2.3 History Data Access Layer
-  - [ ] Create HistoryRepository class
-  - [ ] Add DAO methods for retrieving historical workout data
-  - [ ] Implement filtering by date ranges and workout types
-  - [ ] Create appropriate DTOs for history display
+### 3.2  Simple History Flow Design
 
-- [ ] 3.2.4 Workout History Screen
-  - [ ] Design workout history list item layout
-  - [ ] Create workout history list screen
-  - [ ] Display past workouts with date, type, and completion metrics
-  - [ ] Implement sorting and filtering options
-  
-- [ ] 3.2.5 Historical Workout Detail View
-  - [ ] Design historical workout detail screen
-  - [ ] Display exercise list with performance metrics
-  - [ ] Show time spent, sets completed, and volume information
-  - [ ] Allow navigation to exercise detail history
+## 🎯 Core User Flow (Keep It Simple)
 
-- [ ] 3.2.6 Exercise History & Progress Tracking
-  - [ ] Design exercise history screen showing all past performances
-  - [ ] Implement progress graphs for weights and reps over time
-  - [ ] Show performance trends (improving, plateaued, declining)
-  - [ ] Add personal record indicators
+### When User Clicks History Tab:
+1. **Show Most Recent Workout Day** (automatically)
+2. **Previous/Next Navigation** (like pagination)
+3. **Exercise List** for that day
+4. **Set Details** for each exercise
 
-- [ ] 3.2.7 Performance Analytics
-  - [ ] Create workout volume calculations
-  - [ ] Implement workout frequency tracking
-  - [ ] Design weekly/monthly summary views
-  - [ ] Add muscle group focus distribution charts
+## 📱 Screen Layout
 
-- [ ] 3.2.8 Data Export & Sharing
-  - [ ] Add export options for workout history
-  - [ ] Implement sharing functionality for workouts or progress
-  - [ ] Create printable/shareable workout reports
-  - [ ] Design achievement/milestone sharing cards
+```
+┌─────────────────────────────┐
+│     History               ← │  <- Top bar
+├─────────────────────────────┤
+│  [◄]  Dec 15, 2024    [►]   │  <- Date navigation
+│      Push Workout           │
+├─────────────────────────────┤
+│                             │
+│  🏋️ Bench Press             │  <- Exercise cards
+│  ├─ Set 1: 12 reps @ 185lbs │
+│  ├─ Set 2: 10 reps @ 185lbs │  
+│  └─ Set 3: 8 reps @ 185lbs  │
+│                             │
+│  🏋️ Incline Press           │
+│  ├─ Set 1: 10 reps @ 135lbs │
+│  ├─ Set 2: 9 reps @ 135lbs  │
+│  └─ Set 3: 8 reps @ 135lbs  │
+│                             │
+│  📊 Workout Summary         │
+│  Total Time: 45 mins        │
+│  Sets Completed: 6/6        │
+│                             │
+└─────────────────────────────┘
+```
+
+---
+
+## 🔄 Navigation Logic
+
+### Button States:
+- **Previous (◄)**: Disabled if no older workouts, enabled otherwise
+- **Next (►)**: Disabled if viewing most recent, enabled if there are newer ones
+
+### User Journey:
+1. **Tap History** → Shows last workout automatically
+2. **Tap ◄** → Go to previous workout day
+3. **Tap ►** → Go to next workout day (if not at latest)
+4. **Tap Exercise** → Maybe expand to show more details (future enhancement)
+
+---
+
+
+## 🎯 Implementation Priority
+
+### Phase 1 (This Week):
+1. **Basic Screen Structure**
+  - History screen with top bar
+  - Previous/Next buttons
+  - Date display
+
+2. **Simple Data Access**
+  - Get list of workout dates (DESC order)
+  - Get workout details for specific date
+  - Basic DAO queries
+
+3. **Basic Display**
+  - Show workout date and type
+  - List exercises with basic info
+  - Simple set information
+
+### Phase 2 (Next Week):
+4. **Enhanced Display**
+  - Better exercise cards
+  - Workout summary stats
+  - Exercise icons/colors
+
+5. **User Experience**
+  - Loading states
+  - Empty states (no workouts)
+  - Better error handling
+
+---
+
+## 🚀 User Stories
+
+### Must Have:
+- "I want to see what I did in my last workout"
+- "I want to browse through my previous workouts easily"
+- "I want to see what exercises I did and how much weight I used"
+
+### Nice to Have (Later):
+- "I want to compare my performance over time"
+- "I want to see my progress on specific exercises"
+- "I want to filter by workout type or date range"
+
+---
 
 ---
 
