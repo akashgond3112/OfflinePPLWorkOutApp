@@ -23,10 +23,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.offlinepplworkoutapp.ui.theme.CardBackground
-import com.example.offlinepplworkoutapp.ui.theme.PrimaryCoral
-import com.example.offlinepplworkoutapp.ui.theme.TextPrimary
-import com.example.offlinepplworkoutapp.ui.theme.TextSecondary
 
 @Composable
 fun AddSetButton(
@@ -38,7 +34,7 @@ fun AddSetButton(
             .fillMaxWidth()
             .shadow(4.dp, RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(
-            containerColor = CardBackground
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         shape = RoundedCornerShape(16.dp)
     ) {
@@ -53,14 +49,14 @@ fun AddSetButton(
                 text = "Add New Set",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             )
 
             Text(
                 text = "Add a new set using the default target repetitions for this exercise.",
                 style = MaterialTheme.typography.bodySmall.copy(
-                    color = TextSecondary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 14.sp
                 )
             )
@@ -70,7 +66,7 @@ fun AddSetButton(
                 onClick = onAddSet,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryCoral
+                    containerColor = MaterialTheme.colorScheme.primary
                 ),
                 shape = RoundedCornerShape(12.dp),
                 enabled = canAddSet
@@ -88,7 +84,7 @@ fun AddSetButton(
             Text(
                 text = if (canAddSet) "Maximum 8 sets per exercise." else "Maximum sets reached.",
                 style = MaterialTheme.typography.bodySmall.copy(
-                    color = TextSecondary.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     fontSize = 12.sp
                 ),
                 modifier = Modifier.fillMaxWidth()
