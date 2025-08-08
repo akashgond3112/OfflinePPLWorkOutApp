@@ -9,7 +9,6 @@ import com.example.offlinepplworkoutapp.data.entity.WorkoutDay
 import com.example.offlinepplworkoutapp.data.entity.WorkoutEntry
 import com.example.offlinepplworkoutapp.data.entity.SetEntry
 import com.example.offlinepplworkoutapp.data.entity.WorkoutTemplate
-import com.example.offlinepplworkoutapp.data.PPLTemplateData
 import kotlinx.coroutines.flow.Flow
 import java.text.SimpleDateFormat
 import java.util.*
@@ -75,67 +74,15 @@ class WorkoutRepository(
     }
 
     /**
-     * Create today's workout using template-based system
-     * Automatically determines which template to use based on day of week
-     */
-    suspend fun createTodaysWorkoutFromTemplate(): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
-        val today = dateFormat.format(Date())
-        val templateId = getTemplateIdForDate(today)
-
-        return if (templateId > 0) {
-            createWorkoutFromTemplate(templateId, today)
-        } else {
-            // Rest day - return empty workout
-            println("🚀 REPO: Rest day - no template needed")
-            workoutEntryDao.getWorkoutEntriesForDay(0) // Returns empty flow
-        }
-    }
-
-    /**
-     * Get template ID for a given date based on day of week
-     * This maintains compatibility with current PPL schedule
-     */
-    private fun getTemplateIdForDate(date: String): Int {
-        val calendar = Calendar.getInstance()
-        calendar.time = dateFormat.parse(date) ?: Date()
-        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-
-        return PPLTemplateData.getTemplateIdForDayOfWeek(dayOfWeek)
-    }
-
-    /**
      * Get available templates for user selection
      */
     fun getAvailableTemplates(): Flow<List<WorkoutTemplate>> {
         return workoutTemplateDao.getAllActiveTemplates()
     }
 
-    /**
-     * Get templates by category (Push/Pull/Legs)
-     */
-    fun getTemplatesByCategory(category: String): Flow<List<WorkoutTemplate>> {
-        return workoutTemplateDao.getTemplatesByCategory(category)
-    }
-
     // ===========================================
     // LEGACY DAY-BASED METHODS (PRESERVED)
     // ===========================================
-
-    suspend fun getTodaysWorkout(): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
-        val today = dateFormat.format(Date())
-        val workoutDay = getOrCreateWorkoutDay(today)
-        return workoutEntryDao.getWorkoutEntriesForDay(workoutDay.id)
-    }
-
-    suspend fun getWorkoutForDate(date: String): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
-        val workoutDay = getOrCreateWorkoutDay(date)
-        return workoutEntryDao.getWorkoutEntriesForDay(workoutDay.id)
-    }
-
-    private suspend fun getOrCreateWorkoutDay(date: String): WorkoutDay {
-        return workoutDayDao.getWorkoutDayByDate(date)
-            ?: createWorkoutDayWithExercises(date)
-    }
 
     private suspend fun createWorkoutDayWithExercises(date: String): WorkoutDay {
         // Create workout day
@@ -262,10 +209,6 @@ class WorkoutRepository(
         }
     }
 
-    suspend fun updateWorkoutEntry(entry: WorkoutEntry) {
-        workoutEntryDao.update(entry)
-    }
-
     suspend fun toggleExerciseCompletion(entryId: Int) {
         val entry = workoutEntryDao.getWorkoutEntryById(entryId)
         entry?.let {
@@ -277,7 +220,19 @@ class WorkoutRepository(
     suspend fun markExerciseComplete(entryId: Int, isCompleted: Boolean) {
         val entry = workoutEntryDao.getWorkoutEntryById(entryId)
         entry?.let {
-            val updatedEntry = it.copy(isCompleted = isCompleted)
+            // Set completedAt timestamp if the exercise is being marked as completed
+            val completedTimestamp = if (isCompleted && !it.isCompleted) {
+                System.currentTimeMillis() // Current time in milliseconds
+            } else if (!isCompleted) {
+                null // If marking as incomplete, clear the timestamp
+            } else {
+                it.completedAt // Keep existing timestamp
+            }
+
+            val updatedEntry = it.copy(
+                isCompleted = isCompleted,
+                completedAt = completedTimestamp
+            )
             workoutEntryDao.update(updatedEntry)
         }
     }
@@ -287,9 +242,23 @@ class WorkoutRepository(
         val entry = workoutEntryDao.getWorkoutEntryById(entryId)
         entry?.let {
             println("🏋️ REPO: Found entry - id: ${it.id}, exerciseId: ${it.exerciseId}, current isCompleted: ${it.isCompleted}")
-            val updatedEntry = it.copy(sets = sets, reps = reps, isCompleted = isCompleted)
+
+            // Set completedAt timestamp if the exercise is being marked as completed
+            val completedTimestamp = if (isCompleted && !it.isCompleted) {
+                System.currentTimeMillis() // Current time in milliseconds
+            } else {
+                it.completedAt // Keep existing timestamp or null
+            }
+
+            val updatedEntry = it.copy(
+                sets = sets,
+                reps = reps,
+                isCompleted = isCompleted,
+                completedAt = completedTimestamp
+            )
+
             workoutEntryDao.update(updatedEntry)
-            println("🏋️ REPO: Updated entry - id: ${updatedEntry.id}, new isCompleted: ${updatedEntry.isCompleted}")
+            println("🏋️ REPO: Updated entry - id: ${updatedEntry.id}, new isCompleted: ${updatedEntry.isCompleted}, completedAt: ${updatedEntry.completedAt}")
         } ?: run {
             println("🏋️ REPO ERROR: No entry found for entryId: $entryId")
         }
@@ -303,14 +272,8 @@ class WorkoutRepository(
         }
     }
 
-    suspend fun startExerciseTimer(entryId: Int): Boolean {
-        // Mark exercise as started but not completed
-        val entry = workoutEntryDao.getWorkoutEntryById(entryId)
-        return entry != null
-    }
-
     // New methods for set-based operations
-    suspend fun getSetsForWorkoutEntry(workoutEntryId: Int): Flow<List<SetEntry>> {
+    fun getSetsForWorkoutEntry(workoutEntryId: Int): Flow<List<SetEntry>> {
         return setEntryDao.getSetsForWorkoutEntry(workoutEntryId)
     }
 
@@ -320,11 +283,6 @@ class WorkoutRepository(
 
     suspend fun getCompletedSetsCount(workoutEntryId: Int): Int {
         return setEntryDao.getCompletedSetsCount(workoutEntryId)
-    }
-
-    suspend fun updateSetProgress(setId: Int, isCompleted: Boolean, elapsedTimeSeconds: Int) {
-        val completedAt = if (isCompleted) System.currentTimeMillis() else null
-        setEntryDao.updateSetProgress(setId, isCompleted, elapsedTimeSeconds, completedAt)
     }
 
     // 🚀 NEW: Phase 2.1.1 - Methods for handling set performance data
@@ -345,15 +303,6 @@ class WorkoutRepository(
             weightUsed = weightUsed
         )
         println("🏋️ REPO: Updated set $setId with performance data - reps: $repsPerformed, weight: $weightUsed")
-    }
-
-    suspend fun updateSetPerformanceDataOnly(setId: Int, repsPerformed: Int, weightUsed: Float) {
-        setEntryDao.updateSetPerformanceData(setId, repsPerformed, weightUsed)
-        println("🏋️ REPO: Updated performance data for set $setId - reps: $repsPerformed, weight: $weightUsed")
-    }
-
-    suspend fun getSetById(setId: Int): SetEntry? {
-        return setEntryDao.getSetById(setId)
     }
 
     // 🆕 NEW: 2.2.1 - Get set data by index for editing functionality
@@ -430,28 +379,13 @@ class WorkoutRepository(
         }
     }
 
-    // Method to manually create today's workout (called when user wants to start workout)
-    suspend fun createTodaysWorkout(): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
-        val today = dateFormat.format(Date())
-        return createWorkoutForDate(today)
-    }
-
     // 🔧 NEW: Create workout for any specific date (supports debug mode)
     suspend fun createWorkoutForDate(date: String): Flow<List<com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise>> {
         println("🚀 REPO: Creating workout for date: $date")
 
         // First, ensure exercises exist in the database
-        val exerciseCount = workoutEntryDao.getWorkoutEntryCount() // This will check if ANY entries exist
+        workoutEntryDao.getWorkoutEntryCount() // This will check if ANY entries exist
         println("🚀 REPO: Checking if exercises are populated in database...")
-
-        // Check if we have the basic exercise data
-        val hasExercises = try {
-            val exerciseDao = (workoutEntryDao as? Any) // We need to get exerciseDao reference
-            // For now, let's try to insert the workout and catch the foreign key error
-            true
-        } catch (e: Exception) {
-            false
-        }
 
         // Check if workout day already exists
         val existingWorkoutDay = workoutDayDao.getWorkoutDayByDate(date)
