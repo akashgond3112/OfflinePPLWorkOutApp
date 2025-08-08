@@ -24,6 +24,7 @@ import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
 import com.example.offlinepplworkoutapp.ui.navigation.Screen
 import com.example.offlinepplworkoutapp.ui.screens.history.HistoryScreen
+import com.example.offlinepplworkoutapp.ui.screens.performance.PerformanceScreen
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -96,12 +97,12 @@ fun AppNavigationContainer(repository: WorkoutRepository) {
                 )
             }
             composable(Screen.Performance.route) {
-                // Use existing placeholder implementation
-                com.example.offlinepplworkoutapp.ui.screens.PerformanceScreen()
+                // Use our new PerformanceScreen implementation instead of the placeholder
+                PerformanceScreen(database)
             }
             composable(Screen.Settings.route) {
                 // Use existing placeholder implementation
-                com.example.offlinepplworkoutapp.ui.screens.SettingsScreen()
+                SettingsScreen()
             }
         }
     }

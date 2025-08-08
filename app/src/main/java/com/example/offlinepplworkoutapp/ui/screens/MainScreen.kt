@@ -1,6 +1,8 @@
 package com.example.offlinepplworkoutapp.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -8,8 +10,14 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.offlinepplworkoutapp.R
 import com.example.offlinepplworkoutapp.data.dao.WorkoutEntryWithExercise
 import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
 import com.example.offlinepplworkoutapp.data.repository.WorkoutRepository
@@ -141,49 +149,67 @@ fun MainScreen(
             }
         }
     ) { innerPadding ->
-        when {
-            showTemplateSelection -> {
-                // Show Template Selection Screen
-                com.example.offlinepplworkoutapp.ui.screens.TemplateSelectionScreen(
-                    repository = repository,
-                    selectedDate = viewModel.currentDate.collectAsState().value,
-                    onTemplateSelected = { template ->
-                        viewModel.selectTemplate(template)
-                        viewModel.createWorkoutFromSelectedTemplate()
-                        showTemplateSelection = false
-                    },
-                    onBackClick = { showTemplateSelection = false }
-                )
-            }
-
-            selectedExercise != null -> {
-                // Show Exercise Detail Screen
-                ExerciseDetailScreen(
-                    workoutEntry = selectedExercise!!,
-                    repository = repository,
-                    onBackClick = {
-                        // Force a refresh of workout data when returning from detail screen
-                        viewModel.refreshTodaysWorkout()
-                        selectedExercise = null
-                        viewModel.refreshTodaysWorkout()
-                    },
-                    onSaveChanges = { sets, reps, isCompleted ->
-                        viewModel.updateExercise(selectedExercise!!.id, sets, reps, isCompleted)
-                        // Force a refresh to ensure updated set count is displayed
-                        viewModel.refreshTodaysWorkout()
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Background image with blur effect
+            Image(
+                painter = painterResource(id = R.drawable.main),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(0.15f), // Adjust alpha for desired visibility
+                contentScale = ContentScale.Crop,
+                colorFilter = ColorFilter.colorMatrix(
+                    ColorMatrix().apply {
+                        setToScale(0.8f, 0.8f, 0.8f, 1f) // Slightly darken the image
                     }
                 )
-            }
+            )
 
-            else -> {
-                // Show Daily Workout Screen
-                DailyWorkoutScreen(
-                    viewModel = viewModel,
-                    repository = repository,
-                    onExerciseClick = { exercise -> selectedExercise = exercise },
-                    onTemplateSelectionClick = { showTemplateSelection = true },
-                    modifier = Modifier.padding(innerPadding)
-                )
+            // Content
+            when {
+                showTemplateSelection -> {
+                    // Show Template Selection Screen
+                    TemplateSelectionScreen(
+                        repository = repository,
+                        selectedDate = viewModel.currentDate.collectAsState().value,
+                        onTemplateSelected = { template ->
+                            viewModel.selectTemplate(template)
+                            viewModel.createWorkoutFromSelectedTemplate()
+                            showTemplateSelection = false
+                        },
+                        onBackClick = { showTemplateSelection = false }
+                    )
+                }
+
+                selectedExercise != null -> {
+                    // Show Exercise Detail Screen
+                    ExerciseDetailScreen(
+                        workoutEntry = selectedExercise!!,
+                        repository = repository,
+                        onBackClick = {
+                            // Force a refresh of workout data when returning from detail screen
+                            viewModel.refreshTodaysWorkout()
+                            selectedExercise = null
+                            viewModel.refreshTodaysWorkout()
+                        },
+                        onSaveChanges = { sets, reps, isCompleted ->
+                            viewModel.updateExercise(selectedExercise!!.id, sets, reps, isCompleted)
+                            // Force a refresh to ensure updated set count is displayed
+                            viewModel.refreshTodaysWorkout()
+                        }
+                    )
+                }
+
+                else -> {
+                    // Show Daily Workout Screen
+                    DailyWorkoutScreen(
+                        viewModel = viewModel,
+                        repository = repository,
+                        onExerciseClick = { exercise -> selectedExercise = exercise },
+                        onTemplateSelectionClick = { showTemplateSelection = true },
+                        modifier = Modifier.padding(innerPadding)
+                    )
+                }
             }
         }
 
