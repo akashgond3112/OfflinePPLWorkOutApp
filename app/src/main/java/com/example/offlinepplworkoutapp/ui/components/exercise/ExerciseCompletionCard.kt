@@ -26,7 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.offlinepplworkoutapp.ui.theme.SuccessGreen
 import com.example.offlinepplworkoutapp.ui.theme.TealSecondary
-import com.example.offlinepplworkoutapp.ui.theme.TextOnPrimary
 
 @Composable
 fun ExerciseCompletionCard() {
@@ -51,7 +50,7 @@ fun ExerciseCompletionCard() {
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Completed",
-                tint = TextOnPrimary,
+                tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -59,7 +58,7 @@ fun ExerciseCompletionCard() {
                 text = "Exercise Completed! 🎉",
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
-                    color = TextOnPrimary
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             )
         }
