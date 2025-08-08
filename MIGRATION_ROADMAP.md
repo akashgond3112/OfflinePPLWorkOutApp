@@ -174,31 +174,20 @@ This document outlines the migration path from the current simplified architectu
 
 ---
 
-## Phase 3: Enhanced Exercise Experience 📚 **PLANNED**
-- [ ] 3.1.1 Exercise instruction screens
-- [ ] 3.1.2 Exercise tips and form cues
-- [ ] 3.1.3 Primary/secondary muscle groups display
-- [ ] 3.1.4 Equipment requirements display
-- [ ] 3.1.5 Exercise difficulty indicators
+## 2.4 📖 History Tab - Simple Design
 
-### 3.1 Calendar & History View 📅 **NEXT PRIORITY**
-  - [x] Bottom Navigation Implementation ✅ **COMPLETED**
-  - [x] Add BottomNavigationView with Home, History, Performance, and Settings tabs ✅
-  - [x] Create navigation graph for new sections ✅
-  - [x] Implement navigation controller logic ✅
-  - [x] Design icons for bottom navigation items ✅
+### 🎯 Core User Flow (Keep It Simple)
 
-### 3.2  Simple History Flow Design
+When the user clicks the **History** tab:
 
-## 🎯 Core User Flow (Keep It Simple)
-
-### When User Clicks History Tab:
 1. **Show Most Recent Workout Day** (automatically)
 2. **Previous/Next Navigation** (like pagination)
 3. **Exercise List** for that day
 4. **Set Details** for each exercise
 
-## 📱 Screen Layout
+---
+
+### 📱 Screen Layout
 
 ```
 ┌─────────────────────────────┐
@@ -227,13 +216,15 @@ This document outlines the migration path from the current simplified architectu
 
 ---
 
-## 🔄 Navigation Logic
+### 🔄 Navigation Logic
 
-### Button States:
-- **Previous (◄)**: Disabled if no older workouts, enabled otherwise
-- **Next (►)**: Disabled if viewing most recent, enabled if there are newer ones
+#### Button States:
 
-### User Journey:
+* **Previous (◄)**: Disabled if no older workouts, enabled otherwise
+* **Next (►)**: Disabled if viewing most recent, enabled if there are newer ones
+
+#### User Journey:
+
 1. **Tap History** → Shows last workout automatically
 2. **Tap ◄** → Go to previous workout day
 3. **Tap ►** → Go to next workout day (if not at latest)
@@ -241,53 +232,317 @@ This document outlines the migration path from the current simplified architectu
 
 ---
 
+### 2.4.1 🛠️ Implementation Priority
 
-## 🎯 Implementation Priority
+#### Phase 1 (This Week)
 
-### Phase 1 (This Week):
 1. **Basic Screen Structure**
-  - History screen with top bar
-  - Previous/Next buttons
-  - Date display
+
+  * History screen with top bar
+  * Previous/Next buttons
+  * Date display
 
 2. **Simple Data Access**
-  - Get list of workout dates (DESC order)
-  - Get workout details for specific date
-  - Basic DAO queries
+
+  * Get list of workout dates (DESC order)
+  * Get workout details for specific date
+  * Basic DAO queries
 
 3. **Basic Display**
-  - Show workout date and type
-  - List exercises with basic info
-  - Simple set information
 
-### Phase 2 (Next Week):
+  * Show workout date and type
+  * List exercises with basic info
+  * Simple set information
+
+---
+
+#### Phase 2 (Next Week)
+
 4. **Enhanced Display**
-  - Better exercise cards
-  - Workout summary stats
-  - Exercise icons/colors
+
+  * Better exercise cards
+  * Workout summary stats
+  * Exercise icons/colors
 
 5. **User Experience**
-  - Loading states
-  - Empty states (no workouts)
-  - Better error handling
+
+  * Loading states
+  * Empty states (no workouts)
+  * Better error handling
 
 ---
 
-## 🚀 User Stories
+### 2.4.2 👥 User Stories
+
+#### Must Have:
+
+* "I want to see what I did in my last workout"
+* "I want to browse through my previous workouts easily"
+* "I want to see what exercises I did and how much weight I used"
+
+#### Nice to Have (Later):
+
+* "I want to compare my performance over time"
+* "I want to see my progress on specific exercises"
+* "I want to filter by workout type or date range"
+
+## 2.5 🏋️ Performance Tab - Requirements
+
+### 🎯 Core Concept
+
+Show exercise performance analytics with **focus on one exercise at a time** to avoid overwhelming the user.
+
+---
+
+### 📱 UI Flow & Layout
+
+#### Default State (When User Opens Performance Tab):
+
+```
+┌─────────────────────────────┐
+│   Performance          🔽7d │  <- Top bar with days dropdown
+├─────────────────────────────┤
+│                             │
+│ ▼ 🏋️ Bench Press          │  <- First exercise (EXPANDED)
+│ ┌─────────────────────────┐ │
+│ │    📊 Performance Graph │ │  <- Analytics content
+│ │    💪 Progress Summary  │ │
+│ │    📈 Key Metrics       │ │
+│ └─────────────────────────┘ │
+│                             │
+│ ► 🏋️ Incline Press        │  <- Other exercises (COLLAPSED)
+│ ► 🏋️ Shoulder Press       │
+│ ► 🏋️ Tricep Dips          │
+│                             │
+└─────────────────────────────┘
+```
+
+#### When User Taps Another Exercise:
+
+* **Previous expanded exercise** → Collapses
+* **Clicked exercise** → Expands with analytics
+* **Smooth accordion animation**
+
+---
+
+### 📊 What Analytics to Show (Per Exercise)
+
+#### Primary Metrics:
+
+1. **Weight Progression Graph**
+
+  * X-axis: Days (last 7/14/30 days)
+  * Y-axis: Weight used (lbs/kg)
+  * Line chart showing weight trend
+
+2. **Volume Progression**
+
+  * Total volume = Sets × Reps × Weight
+  * Shows overall workout intensity trend
+
+3. **Reps Performance**
+
+  * Average reps per set over time
+  * Shows endurance/strength focus
+
+#### Secondary Metrics:
+
+4. **Time Efficiency**
+
+  * Average time per set
+  * Total time spent on exercise
+
+5. **Consistency**
+
+  * How many days exercise was performed
+  * Frequency within selected period
+
+---
+
+### 📈 Data We Have Available
+
+#### From Database:
+
+```kotlin
+// Per Set Data:
+- repsPerformed: Int          // 12, 10, 8
+- weightUsed: Float          // 185.0, 190.0, 195.0  
+- timeSpent: Long            // milliseconds per set
+- date: String               // "2024-12-15"
+- exerciseName: String       // "Bench Press"
+
+// Calculated Analytics:
+- totalVolume = sets × reps × weight
+- averageWeight = sum(weights) / totalSets
+- averageReps = sum(reps) / totalSets  
+- totalTime = sum(setTimes)
+- frequency = daysExercisePerformed / totalDays
+```
+
+---
+
+### 🎛️ User Controls
+
+#### Time Period Dropdown:
+
+* **7 Days** (Default)
+* **14 Days**
+* **30 Days**
+
+#### Exercise Selection:
+
+* **Accordion Style**: Only one expanded at a time
+* **Smooth Animations**: Expand/collapse transitions
+* **Auto-scroll**: Focus on expanded exercise
+
+---
+
+### 🪪 Performance Cards Design
+
+#### Collapsed Exercise Card:
+
+```
+┌─────────────────────────────┐
+│ ► 🏋️ Bench Press          │
+│   Last: 185lbs × 12 reps   │  <- Quick summary
+│   Trend: ↗️ +5lbs         │  <- Simple trend indicator
+└─────────────────────────────┘
+```
+
+#### Expanded Exercise Card:
+
+```
+┌─────────────────────────────┐
+│ ▼ 🏋️ Bench Press          │
+├─────────────────────────────┤
+│  📊 Weight Progression      │
+│  ┌─ 📈 Graph Area ─────────┐│
+│  │     /\                  ││
+│  │    /  \    /\           ││
+│  │   /    \  /  \          ││
+│  │  /      \/    \         ││
+│  └─────────────────────────┘│
+│                             │
+│  💪 7-Day Summary           │
+│  • Max Weight: 195lbs       │
+│  • Avg Reps: 10.2          │
+│  • Total Volume: 2,340lbs   │
+│  • Sessions: 2/2 days      │
+│                             │
+│  📈 Progress: +10lbs        │
+└─────────────────────────────┘
+```
+
+---
+
+## 2.5.1 🛠️ Implementation Phases
+
+### Phase 1: Basic Structure
+
+* [ ] Performance screen with dropdown
+* [ ] Exercise list with expand/collapse
+* [ ] Basic data queries for exercise history
+* [ ] Simple text-based metrics
+
+### Phase 2: Analytics
+
+* [ ] Weight progression calculation
+* [ ] Volume and reps analytics
+* [ ] Basic progress indicators (↗️↘️➡️)
+* [ ] Summary statistics
+
+### Phase 3: Visualization
+
+* [ ] Simple line charts for weight progression
+* [ ] Bar charts for volume comparison
+* [ ] Enhanced progress indicators
+* [ ] Better visual design
+
+### Phase 4: Polish
+
+* [ ] Smooth animations
+* [ ] Loading states
+* [ ] Empty states (no data)
+* [ ] Performance optimizations
+
+---
+
+## 2.5.2 ⚙️ Technical Requirements
+
+### Data Processing:
+
+```kotlin
+data class ExercisePerformance(
+    val exerciseName: String,
+    val dailyStats: List<DailyExerciseStats>,
+    val summary: ExerciseSummary
+)
+
+data class DailyExerciseStats(
+    val date: String,
+    val maxWeight: Float,
+    val averageWeight: Float,
+    val totalReps: Int,
+    val totalSets: Int,
+    val totalVolume: Float,
+    val totalTime: Long
+)
+
+data class ExerciseSummary(
+    val period: Int,                    // 7, 14, 30 days
+    val sessionsCompleted: Int,
+    val maxWeight: Float,
+    val averageWeight: Float,
+    val averageReps: Float,
+    val totalVolume: Float,
+    val progressTrend: ProgressTrend    // IMPROVING, DECLINING, STABLE
+)
+```
+
+### Repository Methods:
+
+```kotlin
+suspend fun getExercisePerformance(
+    exerciseName: String, 
+    days: Int
+): ExercisePerformance
+
+suspend fun getAllExercisesPerformance(days: Int): List<ExercisePerformance>
+```
+
+---
+
+## 2.5.3 ✅ Success Criteria
 
 ### Must Have:
-- "I want to see what I did in my last workout"
-- "I want to browse through my previous workouts easily"
-- "I want to see what exercises I did and how much weight I used"
 
-### Nice to Have (Later):
-- "I want to compare my performance over time"
-- "I want to see my progress on specific exercises"
-- "I want to filter by workout type or date range"
+* [ ] User can see performance for each exercise
+* [ ] One exercise expanded at a time (focus)
+* [ ] Basic weight/reps progression data
+* [ ] 7/14/30 day filtering works
+* [ ] Smooth expand/collapse animations
 
----
+### Nice to Have:
 
----
+* [ ] Visual charts and graphs
+* [ ] Trend indicators and insights
+* [ ] Performance comparisons
+* [ ] Export/sharing capabilities
+
+
+## Phase 3: Enhanced Exercise Experience 📚 **PLANNED**
+- [ ] 3.1.1 Exercise instruction screens
+- [ ] 3.1.2 Exercise tips and form cues
+- [ ] 3.1.3 Primary/secondary muscle groups display
+- [ ] 3.1.4 Equipment requirements display
+- [ ] 3.1.5 Exercise difficulty indicators
+
+### 3.1 Calendar & History View 📅 **NEXT PRIORITY**
+  - [x] Bottom Navigation Implementation ✅ **COMPLETED**
+  - [x] Add BottomNavigationView with Home, History, Performance, and Settings tabs ✅
+  - [x] Create navigation graph for new sections ✅
+  - [x] Implement navigation controller logic ✅
+  - [x] Design icons for bottom navigation items ✅
 
 ## Phase 4: Advanced Features 📱 **PLANNED**
 
