@@ -227,24 +227,39 @@ class ExerciseDetailViewModel(
             updatedTimers[setIndex] = updatedTimers[setIndex].copy(isCompleted = true)
             _setTimers.value = updatedTimers
 
-            // Update exercise completion status
+            // Update exercise completion status in DB (relies on DB to check all its sets)
             repository.updateExerciseCompletionFromSets(workoutEntry.id)
 
-            // Update local completed sets count
+            // Update local completed sets count and total current sets
             val completedCount = _setTimers.value.count { it.isCompleted }
             _completedSets.value = completedCount
+            val totalCurrentSets = _setTimers.value.size
 
-            // Check if all sets are completed
-            if (completedCount == workoutEntry.sets) {
-                _isExerciseCompleted.value = true
-                // Stop rest timer if all sets are completed
-                stopRestTimer()
+            // Determine if the exercise is now complete based on ALL current sets
+            _isExerciseCompleted.value = totalCurrentSets > 0 && completedCount == totalCurrentSets
+
+            if (_isExerciseCompleted.value) {
+                println("🎉 EXERCISE COMPLETE: All $totalCurrentSets sets completed for '${workoutEntry.exerciseName}'. Stopping rest timer.")
+                stopRestTimer() // Stop rest timer as the entire exercise is finished.
             } else {
-                // Advance to next set - find the first incomplete set
+                // Exercise is not yet complete.
+                // The rest timer should have been started when stopSetTimer() was called (before data entry).
+                // Advance to the next incomplete set.
                 val nextIncompleteSetIndex = _setTimers.value.indexOfFirst { !it.isCompleted }
                 if (nextIncompleteSetIndex != -1) {
                     _activeSetIndex.value = nextIncompleteSetIndex
-                    println("🔍 DETAIL VM: Advanced to next set index: $nextIncompleteSetIndex")
+                    println("🔍 DETAIL VM: Advanced to next set index: $nextIncompleteSetIndex. Rest timer should be active for the upcoming set.")
+                } else {
+                    // This state implies that all sets are completed, or there are no sets.
+                    // If _isExerciseCompleted is false here, it might be due to totalCurrentSets being 0.
+                    // If all sets are actually completed, _isExerciseCompleted should be true and handled above.
+                    // If somehow the rest timer is active but there are no more actionable sets, stop it.
+                    if (totalCurrentSets == 0 || completedCount == totalCurrentSets) { // Should be covered by _isExerciseCompleted.value already
+                        println("⚠️ DETAIL VM: No next incomplete set, but exercise not marked complete OR no sets exist. Ensuring rest timer is stopped if active. Total: $totalCurrentSets, Completed: $completedCount")
+                        stopRestTimer()
+                    } else {
+                        println("🔍 DETAIL VM: Exercise not complete, but no further incomplete sets found. Current sets: $totalCurrentSets, Completed: $completedCount")
+                    }
                 }
             }
 
