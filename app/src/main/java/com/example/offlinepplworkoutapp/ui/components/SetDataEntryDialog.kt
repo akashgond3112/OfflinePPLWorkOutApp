@@ -7,7 +7,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -15,11 +14,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.offlinepplworkoutapp.ui.theme.*
 
 data class SetPerformanceData(
     val repsPerformed: Int,
-    val weightUsed: Float
+    val weightUsed: Float,
+    val isDoubleDumbbell: Boolean // true if using two dumbbells, false for single dumbbell/plate
 )
 
 @Composable
@@ -40,7 +39,10 @@ fun SetDataEntryDialog(
     var repsError by remember { mutableStateOf(false) }
     var weightError by remember { mutableStateOf(false) }
 
-    println("🎯 DIALOG: SetDataEntryDialog opened for set $setNumber of $exerciseName (Edit mode: $isEditMode)")
+    // NEW: Remember weight type selection (single or double dumbbell)
+    var isDoubleDumbbell by remember { mutableStateOf(false) }
+
+//    println("🎯 DIALOG: SetDataEntryDialog opened for set $setNumber of $exerciseName (Edit mode: $isEditMode)")
 
     Dialog(
         onDismissRequest = {
@@ -76,7 +78,7 @@ fun SetDataEntryDialog(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFFFE0B2) // Light orange background
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
                         )
                     ) {
                         Row(
@@ -90,7 +92,7 @@ fun SetDataEntryDialog(
                                 text = "Rest Timer: $restTimeFormatted",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFFE65100) // Orange text
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
                     }
@@ -101,7 +103,7 @@ fun SetDataEntryDialog(
                     text = if (isEditMode) "Edit Set $setNumber" else "Set $setNumber Complete!",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black,
+                    color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center
                 )
 
@@ -110,7 +112,7 @@ fun SetDataEntryDialog(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFF3E5F5) // Light purple background
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -124,7 +126,7 @@ fun SetDataEntryDialog(
                                 text = "Current Values:",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color(0xFF7B1FA2) // Purple text
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
@@ -135,7 +137,7 @@ fun SetDataEntryDialog(
                                 },
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF7B1FA2)
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
                             )
                         }
                     }
@@ -146,7 +148,7 @@ fun SetDataEntryDialog(
                     text = exerciseName,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Color.Black.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
@@ -168,8 +170,8 @@ fun SetDataEntryDialog(
                         isError = repsError,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryCoral,
-                            cursorColor = PrimaryCoral
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            cursorColor = MaterialTheme.colorScheme.primary
                         ),
                         supportingText = if (repsError) {
                             { Text("Please enter a valid number of reps", color = MaterialTheme.colorScheme.error) }
@@ -189,20 +191,73 @@ fun SetDataEntryDialog(
                         isError = weightError,
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryCoral,
-                            cursorColor = PrimaryCoral
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            cursorColor = MaterialTheme.colorScheme.primary
                         ),
                         supportingText = if (weightError) {
                             { Text("Please enter a valid weight", color = MaterialTheme.colorScheme.error) }
                         } else null
                     )
+
+                    // 🆕 NEW: Weight type selection - single or double dumbbell
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "Weight Type:",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        // Single dumbbell option
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = !isDoubleDumbbell,
+                                onClick = { isDoubleDumbbell = false },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = MaterialTheme.colorScheme.primary,
+                                    unselectedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            )
+                            Text(
+                                text = "Single Dumbbell/Plate",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        // Double dumbbell option
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isDoubleDumbbell,
+                                onClick = { isDoubleDumbbell = true },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = MaterialTheme.colorScheme.primary,
+                                    unselectedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            )
+                            Text(
+                                text = "Double Dumbbell (×2)",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
                 }
 
                 // Required fields note
                 Text(
                     text = "* Required fields",
                     fontSize = 12.sp,
-                    color = Color.Black.copy(alpha = 0.6f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -223,7 +278,7 @@ fun SetDataEntryDialog(
                                 .weight(1f)
                                 .height(48.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = PrimaryCoral
+                                contentColor = MaterialTheme.colorScheme.primary
                             )
                         ) {
                             Text(
@@ -255,7 +310,8 @@ fun SetDataEntryDialog(
                                         println("🎯 DIALOG: Validation passed - updating data")
                                         val data = SetPerformanceData(
                                             repsPerformed = reps,
-                                            weightUsed = weight
+                                            weightUsed = weight,
+                                            isDoubleDumbbell = isDoubleDumbbell // Use selected weight type
                                         )
                                         onDataEntered(data)
                                     }
@@ -265,14 +321,14 @@ fun SetDataEntryDialog(
                                 .weight(1f)
                                 .height(48.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PrimaryCoral
+                                containerColor = MaterialTheme.colorScheme.primary
                             )
                         ) {
                             Text(
                                 text = "Update",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         }
                     }
@@ -299,7 +355,8 @@ fun SetDataEntryDialog(
                                     println("🎯 DIALOG: Validation passed - submitting data")
                                     val data = SetPerformanceData(
                                         repsPerformed = reps,
-                                        weightUsed = weight
+                                        weightUsed = weight,
+                                        isDoubleDumbbell = isDoubleDumbbell // Use selected weight type
                                     )
                                     onDataEntered(data)
                                 }
@@ -309,14 +366,14 @@ fun SetDataEntryDialog(
                             .fillMaxWidth()
                             .height(48.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = PrimaryCoral
+                            containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
                         Text(
                             text = "ADD",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }
@@ -324,4 +381,3 @@ fun SetDataEntryDialog(
         }
     }
 }
-
