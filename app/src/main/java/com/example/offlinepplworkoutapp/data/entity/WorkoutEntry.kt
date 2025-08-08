@@ -37,5 +37,6 @@ data class WorkoutEntry(
     val sets: Int,
     val reps: Int,
     val isCompleted: Boolean = false,
-    val totalSecondsSpent: Int = 0 // New field for time tracking
+    val totalSecondsSpent: Int = 0, // New field for time tracking
+    val completedAt: Long? = null // New timestamp for completion date/time
 )
