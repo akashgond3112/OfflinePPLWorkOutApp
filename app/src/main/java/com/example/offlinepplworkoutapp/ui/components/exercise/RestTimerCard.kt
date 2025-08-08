@@ -22,21 +22,18 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.offlinepplworkoutapp.ui.theme.AmberAccent
-import com.example.offlinepplworkoutapp.ui.theme.TextPrimary
 import com.example.offlinepplworkoutapp.utils.ExerciseDetailUtils.formatTime
 
 @Composable
 fun RestTimerCard(
-    restTime: Long,
-    isActive: Boolean
+    restTime: Long
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .shadow(6.dp, RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(
-            containerColor = AmberAccent.copy(alpha = 0.1f)
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f)
         ),
         shape = RoundedCornerShape(16.dp)
     ) {
@@ -52,7 +49,7 @@ fun RestTimerCard(
                 Icon(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Rest",
-                    tint = AmberAccent,
+                    tint = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.size(24.dp)
                 )
 
@@ -62,7 +59,7 @@ fun RestTimerCard(
                     text = "Rest Timer",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 )
             }
@@ -72,7 +69,7 @@ fun RestTimerCard(
                 text = formatTime(restTime),
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    color = AmberAccent,
+                    color = MaterialTheme.colorScheme.tertiary,
                     fontSize = 24.sp
                 )
             )
