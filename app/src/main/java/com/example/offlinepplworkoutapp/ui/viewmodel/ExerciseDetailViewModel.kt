@@ -53,7 +53,6 @@ class ExerciseDetailViewModel(
 
     // 🔧 NEW: Track accumulated rest time for total exercise time calculation
     private val _totalRestTime = MutableStateFlow(0L)
-    val totalRestTime: StateFlow<Long> = _totalRestTime.asStateFlow()
 
     // 🚀 NEW: Phase 2.1.2 - Set data entry dialog state
     private val _showSetDataDialog = MutableStateFlow(false)
@@ -437,12 +436,6 @@ class ExerciseDetailViewModel(
             val elapsed = currentTime - timer.startTime
             updatedTimers[setIndex] = timer.copy(elapsedTime = elapsed)
             _setTimers.value = updatedTimers
-
-            // 🔧 REMOVED: Don't update total time during live timer updates
-            // updateTotalExerciseTime() // This was causing live updates in top bar
-
-            // 🔧 ADDED: Force UI recomposition for live stopwatch display
-            println("⏱️ TIMER: Set ${setIndex + 1} - ${elapsed / 1000}s (Live)")
         }
     }
 
@@ -517,12 +510,10 @@ class ExerciseDetailViewModel(
                     println("🔔 REST MILESTONE: 1 minute of rest reached")
                 }
 
-                println("⏱️ REST TIMER: ${elapsedRestTime / 1000}s (Live) - _restTimer.value = ${_restTimer.value}")
             }
             println("🚀 REST DEBUG: Rest timer coroutine ended")
         }
 
-        println("🚀 REST TIMER STARTED - Job created: ${restTimerJob != null}")
     }
 
     private fun stopRestTimer() {
