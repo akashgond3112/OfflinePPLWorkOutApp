@@ -53,6 +53,9 @@ interface WorkoutEntryDao {
 
     @Query("SELECT COUNT(*) FROM workout_entries")
     suspend fun getWorkoutEntryCount(): Int
+
+    @Query("SELECT * FROM workout_entries WHERE exercise_id = :exerciseId")
+    suspend fun getWorkoutEntriesForExercise(exerciseId: Int): List<WorkoutEntry>
 }
 
 data class WorkoutEntryWithExercise(
