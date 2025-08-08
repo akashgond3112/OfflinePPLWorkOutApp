@@ -27,7 +27,7 @@ import kotlinx.coroutines.withContext
 
 @Database(
     entities = [Exercise::class, WorkoutDay::class, WorkoutEntry::class, SetEntry::class, WorkoutTemplate::class, TemplateExercise::class],
-    version = 9,  // 🚀 NEW: Updated from 8 to 9 for non-nullable set performance data fields
+    version = 10,  // Updated from 9 to 10 for adding completedAt field to WorkoutEntry
     exportSchema = false
 )
 abstract class PPLWorkoutDatabase : RoomDatabase() {
@@ -39,7 +39,7 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
     abstract fun workoutTemplateDao(): WorkoutTemplateDao
     abstract fun templateExerciseDao(): TemplateExerciseDao
 
-    private class PPLWorkoutDatabaseCallback : RoomDatabase.Callback() {
+    private class PPLWorkoutDatabaseCallback : Callback() {
 
         override fun onCreate(db: SupportSQLiteDatabase) {
             super.onCreate(db)
@@ -235,6 +235,22 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
             }
         }
 
+        // 🚀 NEW: Migration from version 9 to 10 - Add completedAt field to WorkoutEntry
+        private val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                println("🔄 MIGRATION: Starting migration from v9 to v10...")
+
+                // Add completedAt column to workout_entries table
+                db.execSQL(
+                    """
+                    ALTER TABLE workout_entries ADD COLUMN completedAt INTEGER
+                """.trimIndent()
+                )
+
+                println("🔄 MIGRATION: Successfully added completedAt column to workout_entries table")
+            }
+        }
+
         fun getDatabase(context: Context): PPLWorkoutDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -246,7 +262,8 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
                     .addMigrations(
                         MIGRATION_6_7,
                         MIGRATION_7_8,
-                        MIGRATION_8_9
+                        MIGRATION_8_9,
+                        MIGRATION_9_10
                     )  // Fixed: use addMigrations instead of addMigration
                     .fallbackToDestructiveMigration()
                     // Force database recreation to ensure clean state
