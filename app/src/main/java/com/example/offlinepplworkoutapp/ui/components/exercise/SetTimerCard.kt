@@ -39,15 +39,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.offlinepplworkoutapp.ui.theme.AmberAccent
-import com.example.offlinepplworkoutapp.ui.theme.CardBackground
-import com.example.offlinepplworkoutapp.ui.theme.PrimaryCoral
 import com.example.offlinepplworkoutapp.ui.theme.ProgressEnd
 import com.example.offlinepplworkoutapp.ui.theme.ProgressStart
-import com.example.offlinepplworkoutapp.ui.theme.SuccessGreen
-import com.example.offlinepplworkoutapp.ui.theme.TealSecondary
-import com.example.offlinepplworkoutapp.ui.theme.TextPrimary
-import com.example.offlinepplworkoutapp.ui.theme.TextSecondary
 import com.example.offlinepplworkoutapp.utils.HapticFeedbackHelper
 import com.example.offlinepplworkoutapp.utils.rememberHapticFeedback
 
@@ -74,9 +67,9 @@ fun SetTimerCard(
     // Animation for card elevation based on state
     val animatedElevation by animateDpAsState(
         targetValue = when {
-            isCurrentSet -> 12.dp
-            isActive -> 6.dp
-            else -> 2.dp
+            isCurrentSet -> 16.dp
+            isActive -> 8.dp
+            else -> 4.dp
         },
         animationSpec = tween(300)
     )
@@ -84,7 +77,7 @@ fun SetTimerCard(
     // Card colors based on state
     val cardColors = when {
         isCompleted -> CardDefaults.cardColors(
-            containerColor = SuccessGreen.copy(alpha = 0.1f)
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
         )
 
         isCurrentSet -> CardDefaults.cardColors(
@@ -92,15 +85,15 @@ fun SetTimerCard(
         )
 
         isActive -> CardDefaults.cardColors(
-            containerColor = AmberAccent.copy(alpha = 0.1f)
+            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
         )
 
         isLocked -> CardDefaults.cardColors(
-            containerColor = TextSecondary.copy(alpha = 0.05f)
+            containerColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.05f)
         )
 
         else -> CardDefaults.cardColors(
-            containerColor = CardBackground
+            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 
@@ -205,8 +198,8 @@ private fun SetHeaderRow(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = when {
-                        isLocked -> TextSecondary.copy(alpha = 0.6f)
-                        else -> TextPrimary
+                        isLocked -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        else -> MaterialTheme.colorScheme.onSurface
                     }
                 )
             )
@@ -222,7 +215,7 @@ private fun SetHeaderRow(
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = "Delete set",
-                        tint = PrimaryCoral,
+                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -250,7 +243,7 @@ private fun SetStatusIcon(
             Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Completed",
-                tint = SuccessGreen,
+                tint = MaterialTheme.colorScheme.tertiary,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -259,7 +252,7 @@ private fun SetStatusIcon(
             Icon(
                 imageVector = Icons.Default.PlayArrow,
                 contentDescription = "Active",
-                tint = PrimaryCoral,
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -268,7 +261,7 @@ private fun SetStatusIcon(
             Icon(
                 imageVector = Icons.Default.Lock,
                 contentDescription = "Locked",
-                tint = TextSecondary,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -277,7 +270,7 @@ private fun SetStatusIcon(
             Icon(
                 imageVector = Icons.Default.DateRange,
                 contentDescription = "Ready",
-                tint = TealSecondary,
+                tint = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -298,7 +291,7 @@ private fun SetInfoRow(
         Text(
             text = "Target: $targetReps reps",
             style = MaterialTheme.typography.bodyMedium.copy(
-                color = TextSecondary,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 14.sp
             )
         )
@@ -312,7 +305,7 @@ private fun SetInfoRow(
                     if (weightUsed > 0f) append("${weightUsed}lbs")
                 },
                 style = MaterialTheme.typography.bodyMedium.copy(
-                    color = PrimaryCoral,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -353,7 +346,7 @@ private fun SetActionButtons(
                 Text(
                     text = "Complete previous sets first",
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        color = TextSecondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
                     ),
                     modifier = Modifier.weight(1f)
@@ -368,7 +361,7 @@ private fun SetActionButtons(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = SuccessGreen
+                        containerColor = MaterialTheme.colorScheme.tertiary
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -390,10 +383,9 @@ private fun SetActionButtons(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = PrimaryCoral
+                        containerColor = MaterialTheme.colorScheme.primary
                     ),
                     shape = RoundedCornerShape(12.dp),
-                    enabled = !isLocked
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
@@ -419,7 +411,7 @@ private fun SetActionButtons(
                 Icon(
                     imageVector = Icons.Default.RestartAlt,
                     contentDescription = "Reset set",
-                    tint = PrimaryCoral,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -448,14 +440,14 @@ private fun SetCompletedState(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Completed",
-                    tint = SuccessGreen,
+                    tint = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "Set Completed",
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        color = SuccessGreen,
+                        color = MaterialTheme.colorScheme.tertiary,
                         fontWeight = FontWeight.Medium
                     )
                 )
@@ -473,7 +465,7 @@ private fun SetCompletedState(
                         Text(
                             text = "Performed: $repsPerformed reps",
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = TextSecondary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                     }
@@ -484,7 +476,7 @@ private fun SetCompletedState(
                         Text(
                             text = "Weight: ${weightUsed}lbs",
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = TextSecondary
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                     }
@@ -506,7 +498,7 @@ private fun SetCompletedState(
                     Icon(
                         imageVector = Icons.Default.RestartAlt,
                         contentDescription = "Reset set",
-                        tint = PrimaryCoral,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -523,7 +515,7 @@ private fun SetCompletedState(
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = "Edit set data",
-                    tint = PrimaryCoral,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)
                 )
             }
