@@ -267,8 +267,15 @@ class WorkoutRepository(
     suspend fun updateExerciseTime(entryId: Int, totalSecondsSpent: Int) {
         val entry = workoutEntryDao.getWorkoutEntryById(entryId)
         entry?.let {
-            val updatedEntry = it.copy(totalSecondsSpent = totalSecondsSpent)
+            // Update both totalSecondsSpent and set completedAt timestamp to current time
+            val currentTime = System.currentTimeMillis()
+            val updatedEntry = it.copy(
+                totalSecondsSpent = totalSecondsSpent,
+                completedAt = currentTime,
+                isCompleted = true // Also ensure isCompleted is set to true
+            )
             workoutEntryDao.update(updatedEntry)
+            println("🕐 COMPLETION: WorkoutEntry ${entryId} marked as completed at ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(Date(currentTime))}")
         }
     }
 
