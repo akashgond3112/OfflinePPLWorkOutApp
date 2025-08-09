@@ -1,6 +1,7 @@
 package com.example.offlinepplworkoutapp.data.performance
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import com.example.offlinepplworkoutapp.data.database.PPLWorkoutDatabase
 import com.example.offlinepplworkoutapp.data.entity.Exercise
@@ -11,6 +12,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import java.time.LocalDate
 import java.time.ZoneId
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Repository for handling performance analytics data for exercises
@@ -24,20 +28,35 @@ class PerformanceRepository(private val database: PPLWorkoutDatabase) {
      */
     @RequiresApi(Build.VERSION_CODES.O)
     fun getAllExercisesPerformance(days: Int): Flow<List<ExercisePerformance>> = flow {
-        // Get the current time minus the specified days
-        val startTime = LocalDate.now().minusDays(days.toLong())
+        // Calculate the date from days ago, but we want to include the entire current day
+        // so we use (days - 1) days ago, which effectively includes today
+        val startTime = LocalDate.now().minusDays((days - 1).toLong())
             .atStartOfDay(ZoneId.systemDefault())
             .toInstant().toEpochMilli()
+
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+        val startTimeFormatted = dateFormat.format(Date(startTime))
+        Log.d("PerformanceRepo", "🔍 Loading performance data for the last $days days (from $startTimeFormatted)")
 
         try {
             // Get exercises as a List<Exercise> by collecting the first value from the Flow
             val exercises = database.exerciseDao().getAllExercises().first()
+            Log.d("PerformanceRepo", "🔍 Found ${exercises.size} exercises in database")
 
             // Build performance data for each exercise
             val performanceList = exercises.map { exercise ->
                 try {
-                    buildExercisePerformance(exercise, startTime)
+                    Log.d("PerformanceRepo", "🔍 Building performance for exercise: ${exercise.id} - ${exercise.name}")
+                    val performance = buildExercisePerformance(exercise, startTime)
+                    Log.d("PerformanceRepo", "✅ Performance for ${exercise.name}: " +
+                            "MaxWeight=${performance.maxWeight}kg, " +
+                            "MaxReps=${performance.maxReps}, " +
+                            "Sessions=${performance.sessionsCount}, " +
+                            "DataPoints=${performance.progressData.size}"
+                    )
+                    performance
                 } catch (e: Exception) {
+                    Log.e("PerformanceRepo", "❌ Error building performance for ${exercise.name}: ${e.message}")
                     // If processing a specific exercise fails, return a placeholder with error state
                     // This prevents one bad exercise from breaking the entire performance tab
                     ExercisePerformance(
@@ -55,6 +74,7 @@ class PerformanceRepository(private val database: PPLWorkoutDatabase) {
 
             emit(performanceList)
         } catch (e: Exception) {
+            Log.e("PerformanceRepo", "�� Error loading exercise performance: ${e.message}")
             // In case of error, emit an empty list
             emit(emptyList<ExercisePerformance>())
         }
@@ -109,8 +129,24 @@ class PerformanceRepository(private val database: PPLWorkoutDatabase) {
      * Get workout entries for a specific exercise within a date range
      */
     private suspend fun getWorkoutEntriesForExercise(exerciseId: Int, startTime: Long): List<WorkoutEntry> {
-        return database.workoutEntryDao().getWorkoutEntriesForExercise(exerciseId)
-            .filter { it.completedAt != null && it.completedAt >= startTime }
+        // Use the new specialized query for performance data that only gets completed workouts
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+
+        Log.d("PerformanceRepo", "🔍 Fetching completed workout entries for exercise ID: $exerciseId from ${dateFormat.format(Date(startTime))}")
+
+        val filteredEntries = database.workoutEntryDao().getCompletedWorkoutEntriesForExercise(exerciseId, startTime)
+
+        Log.d("PerformanceRepo", "🔍 Found ${filteredEntries.size} completed entries")
+
+        filteredEntries.forEach { entry ->
+            entry.completedAt?.let { timestamp ->
+                Log.d("PerformanceRepo", "📝 Completed workout entry: ID=${entry.id}, " +
+                        "ExerciseID=${entry.exerciseId}, " +
+                        "CompletedAt=${dateFormat.format(Date(timestamp))}")
+            }
+        }
+
+        return filteredEntries
     }
 
     /**
@@ -118,10 +154,23 @@ class PerformanceRepository(private val database: PPLWorkoutDatabase) {
      */
     private suspend fun getAllSetsForWorkoutEntries(workoutEntries: List<WorkoutEntry>): List<SetEntry> {
         val allSets = mutableListOf<SetEntry>()
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
 
         workoutEntries.forEach { workoutEntry ->
             val sets = database.setEntryDao().getSetsForWorkoutEntrySync(workoutEntry.id)
-            allSets.addAll(sets.filter { it.isCompleted })
+            Log.d("PerformanceRepo", "🔍 Found ${sets.size} sets for workout entry ID: ${workoutEntry.id}")
+
+            val completedSets = sets.filter { it.isCompleted }
+            Log.d("PerformanceRepo", "🔍 Completed sets: ${completedSets.size} out of ${sets.size}")
+
+            completedSets.forEach { set ->
+                Log.d("PerformanceRepo", "📝 Set: ID=${set.id}, " +
+                        "Weight=${set.weightUsed}kg, " +
+                        "Reps=${set.repsPerformed}, " +
+                        "CompletedAt=${set.completedAt?.let { dateFormat.format(Date(it)) } ?: "null"}")
+            }
+
+            allSets.addAll(completedSets)
         }
 
         return allSets
