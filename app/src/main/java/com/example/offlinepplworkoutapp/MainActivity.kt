@@ -15,8 +15,6 @@ import com.example.offlinepplworkoutapp.ui.screens.AppNavigationContainer
 import com.example.offlinepplworkoutapp.ui.theme.OfflinePPLWorkOutAppTheme
 import com.example.offlinepplworkoutapp.utils.NotificationHelper
 
-private const val IS_DEBUG_MODE = true
-
 class MainActivity : ComponentActivity() {
 
     private lateinit var database: PPLWorkoutDatabase

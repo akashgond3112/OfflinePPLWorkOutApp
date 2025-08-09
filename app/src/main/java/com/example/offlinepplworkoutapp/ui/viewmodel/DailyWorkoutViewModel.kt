@@ -144,18 +144,6 @@ class DailyWorkoutViewModel(
         }
     }
 
-    fun toggleExerciseCompletion(entryId: Int) {
-        viewModelScope.launch {
-            repository.toggleExerciseCompletion(entryId)
-        }
-    }
-
-    fun markExerciseComplete(entryId: Int, isCompleted: Boolean) {
-        viewModelScope.launch {
-            repository.markExerciseComplete(entryId, isCompleted)
-        }
-    }
-
     fun updateExercise(entryId: Int, sets: Int, reps: Int, isCompleted: Boolean) {
         println("🎯 VIEWMODEL: updateExercise called - entryId: $entryId, sets: $sets, reps: $reps, isCompleted: $isCompleted")
         viewModelScope.launch {
