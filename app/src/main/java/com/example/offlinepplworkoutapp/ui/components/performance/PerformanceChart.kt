@@ -89,6 +89,7 @@ fun PerformanceChart(
     // Get colors outside of Canvas since MaterialTheme.colorScheme can only be used in @Composable context
     val primaryColor = MaterialTheme.colorScheme.primary
     val outlineVariantColor = MaterialTheme.colorScheme.outlineVariant
+    MaterialTheme.colorScheme.secondary
 
     // Main chart layout
     Column(modifier = modifier.fillMaxWidth()) {
@@ -111,32 +112,61 @@ fun PerformanceChart(
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                 .padding(8.dp)
         ) {
-            // Render the chart
-            Canvas(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                val width = size.width
-                val height = size.height
-                val usableHeight = height * 0.9f
-                val bottomPadding = height * 0.1f
+            // Show current value when only one data point is available
+            if (progressPoints.size == 1) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    val currentValue = when (chartType) {
+                        ChartType.WEIGHT -> "${progressPoints[0].weight}kg"
+                        ChartType.REPS -> "${progressPoints[0].reps} reps"
+                        ChartType.VOLUME -> "${progressPoints[0].volume.toInt()} volume"
+                    }
 
-                // Draw horizontal grid lines
-                val strokePath = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
-
-                // Draw 5 horizontal grid lines
-                for (i in 0..4) {
-                    val y = height - bottomPadding - (i * usableHeight / 4)
-                    drawLine(
-                        color = outlineVariantColor, // Use the color from outside
-                        start = Offset(0f, y),
-                        end = Offset(width, y),
-                        strokeWidth = 1f,
-                        pathEffect = strokePath
+                    Text(
+                        text = "Current ${chartType.name.lowercase().capitalize(Locale.ROOT)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = currentValue,
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = primaryColor
+                    )
+                    Text(
+                        text = "Need more workouts for progression data",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp)
                     )
                 }
+            } else {
+                // Render the chart for multiple data points
+                Canvas(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    val width = size.width
+                    val height = size.height
+                    val usableHeight = height * 0.9f
+                    val bottomPadding = height * 0.1f
 
-                // Only draw the graph if we have at least 2 points
-                if (progressPoints.size >= 2) {
+                    // Draw horizontal grid lines
+                    val strokePath = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+
+                    // Draw 5 horizontal grid lines
+                    for (i in 0..4) {
+                        val y = height - bottomPadding - (i * usableHeight / 4)
+                        drawLine(
+                            color = outlineVariantColor,
+                            start = Offset(0f, y),
+                            end = Offset(width, y),
+                            strokeWidth = 1f,
+                            pathEffect = strokePath
+                        )
+                    }
+
                     // Calculate x and y positions for each point
                     val points = progressPoints.mapIndexed { index, point ->
                         val x = width * index / (progressPoints.size - 1)
@@ -148,7 +178,7 @@ fun PerformanceChart(
                     // Draw connecting lines between points
                     for (i in 0 until points.size - 1) {
                         drawLine(
-                            color = primaryColor, // Use the color from outside
+                            color = primaryColor,
                             start = points[i],
                             end = points[i + 1],
                             strokeWidth = 3f,
@@ -159,7 +189,7 @@ fun PerformanceChart(
                     // Draw points
                     points.forEach { point ->
                         drawCircle(
-                            color = primaryColor, // Use the color from outside
+                            color = primaryColor,
                             radius = 5f,
                             center = point
                         )
@@ -189,6 +219,16 @@ fun PerformanceChart(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            } else if (progressPoints.size == 1) {
+                // Show a single date at the bottom
+                Text(
+                    text = dateFormatter.format(Date(progressPoints.first().date)),
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 4.dp)
+                )
             }
         }
     }
