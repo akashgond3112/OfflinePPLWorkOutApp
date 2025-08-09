@@ -9,7 +9,7 @@ interface WorkoutEntryDao {
 
     @Query("""
         SELECT we.id, we.day_id as dayId, we.exercise_id as exerciseId, we.sets, we.reps, we.isCompleted, we.totalSecondsSpent,
-               e.name as exerciseName, e.isCompound 
+               e.name as exerciseName, e.isCompound, we.completedAt
         FROM workout_entries we
         INNER JOIN exercises e ON we.exercise_id = e.id
         WHERE we.day_id = :dayId
@@ -19,7 +19,7 @@ interface WorkoutEntryDao {
 
     @Query("""
         SELECT we.id, we.day_id as dayId, we.exercise_id as exerciseId, we.sets, we.reps, we.isCompleted, we.totalSecondsSpent,
-               e.name as exerciseName, e.isCompound 
+               e.name as exerciseName, e.isCompound, we.completedAt
         FROM workout_entries we
         INNER JOIN exercises e ON we.exercise_id = e.id
         WHERE we.day_id = :dayId
@@ -54,8 +54,15 @@ interface WorkoutEntryDao {
     @Query("SELECT COUNT(*) FROM workout_entries")
     suspend fun getWorkoutEntryCount(): Int
 
-    @Query("SELECT * FROM workout_entries WHERE exercise_id = :exerciseId")
+    @Query("SELECT * FROM workout_entries WHERE exercise_id = :exerciseId ORDER BY completedAt DESC")
     suspend fun getWorkoutEntriesForExercise(exerciseId: Int): List<WorkoutEntry>
+
+    /**
+     * Get completed workout entries for a specific exercise within a date range
+     * Used specifically for the performance screen
+     */
+    @Query("SELECT * FROM workout_entries WHERE exercise_id = :exerciseId AND isCompleted = 1 AND completedAt IS NOT NULL AND completedAt >= :startTime ORDER BY completedAt DESC")
+    suspend fun getCompletedWorkoutEntriesForExercise(exerciseId: Int, startTime: Long): List<WorkoutEntry>
 }
 
 data class WorkoutEntryWithExercise(
@@ -67,5 +74,6 @@ data class WorkoutEntryWithExercise(
     val isCompleted: Boolean,
     val exerciseName: String,
     val isCompound: Boolean,
-    val totalSecondsSpent: Int = 0 // Add time tracking field
+    val totalSecondsSpent: Int = 0, // Time tracking field
+    val completedAt: Long? = null // Adding completedAt timestamp
 )
