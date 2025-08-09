@@ -124,7 +124,8 @@ class ExerciseDetailViewModel(
 
                 updateTotalExerciseTime()
 
-                println("🔍 DETAIL VM: State updated for '${workoutEntry.exerciseName}' - completedSets: ${_completedSets.value}, isCompleted: ${_isExerciseCompleted.value}")
+                println("🔍 DETAIL VM: State updated for '${workoutEntry.exerciseName}' (ID: ${workoutEntry.id}, ExerciseID: ${workoutEntry.exerciseId}) - completedSets: ${_completedSets.value}, isCompleted: ${_isExerciseCompleted.value}")
+
             }
         }
     }
