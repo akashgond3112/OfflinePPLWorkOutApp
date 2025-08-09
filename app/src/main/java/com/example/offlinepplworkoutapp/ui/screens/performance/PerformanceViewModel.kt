@@ -54,6 +54,31 @@ class PerformanceViewModel(private val repository: PerformanceRepository) : View
     }
 
     /**
+     * Select a muscle group to display
+     */
+    fun selectMuscle(muscleName: String) {
+        _uiState.update { currentState ->
+            // Clear expanded exercises when changing muscle groups
+            currentState.copy(
+                selectedMuscle = muscleName,
+                expandedExercises = emptySet()
+            )
+        }
+    }
+
+    /**
+     * Clear the selected muscle group and return to muscle group view
+     */
+    fun clearSelectedMuscle() {
+        _uiState.update { currentState ->
+            currentState.copy(
+                selectedMuscle = null,
+                expandedExercises = emptySet()
+            )
+        }
+    }
+
+    /**
      * Toggle the expanded state of an exercise
      */
     fun toggleExerciseExpanded(exerciseId: Int) {
@@ -94,5 +119,6 @@ data class PerformanceUiState(
     val exercisePerformances: List<ExercisePerformance> = emptyList(),
     val expandedExercises: Set<Int> = emptySet(),
     val selectedTimePeriod: Int = 7,
+    val selectedMuscle: String? = null,
     val isLoading: Boolean = false
 )
