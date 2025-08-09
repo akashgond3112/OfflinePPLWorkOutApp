@@ -19,6 +19,7 @@ import com.example.offlinepplworkoutapp.data.entity.SetEntry
 import com.example.offlinepplworkoutapp.data.entity.WorkoutTemplate
 import com.example.offlinepplworkoutapp.data.entity.TemplateExercise
 import com.example.offlinepplworkoutapp.data.ExerciseData
+import com.example.offlinepplworkoutapp.data.NewExerciseData
 import com.example.offlinepplworkoutapp.data.PPLTemplateData
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +28,7 @@ import kotlinx.coroutines.withContext
 
 @Database(
     entities = [Exercise::class, WorkoutDay::class, WorkoutEntry::class, SetEntry::class, WorkoutTemplate::class, TemplateExercise::class],
-    version = 10,  // Updated from 9 to 10 for adding completedAt field to WorkoutEntry
+    version = 11,  // Updated from 10 to 11 for adding new exercises
     exportSchema = false
 )
 abstract class PPLWorkoutDatabase : RoomDatabase() {
@@ -251,23 +252,61 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from version 10 to 11 - Add new exercises without affecting existing data
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                println("🔄 MIGRATION: Starting migration from v10 to v11 for new exercises...")
+
+                // Get the new exercises synchronously
+                val newExercises = NewExerciseData.getNewExercises()
+
+                // Insert each exercise directly without using coroutines
+                newExercises.forEach { exercise ->
+                    try {
+                        // Using correct column names that match Room's naming convention
+                        val insertSql = """
+                            INSERT OR IGNORE INTO exercises (
+                                id, name, isCompound, primaryMuscle, secondaryMuscles, 
+                                equipment, difficulty, instructions, tips, category
+                            ) VALUES (
+                                ${exercise.id}, '${exercise.name.replace("'", "''")}', 
+                                ${if (exercise.isCompound) 1 else 0}, 
+                                '${exercise.primaryMuscle.replace("'", "''")}',
+                                '${exercise.secondaryMuscles.replace("'", "''")}',
+                                '${exercise.equipment.replace("'", "''")}', 
+                                '${exercise.difficulty.replace("'", "''")}', 
+                                '${exercise.instructions.replace("'", "''")}',
+                                '${exercise.tips.replace("'", "''")}', 
+                                '${exercise.category.replace("'", "''")}'
+                            )
+                        """.trimIndent()
+                        db.execSQL(insertSql)
+                        println("🔄 MIGRATION: Inserted exercise ${exercise.id}: ${exercise.name}")
+                    } catch (e: Exception) {
+                        println("Error inserting exercise ${exercise.id}: ${e.message}")
+                    }
+                }
+                println("🔄 MIGRATION: Successfully added ${newExercises.size} new exercises")
+            }
+        }
+
         fun getDatabase(context: Context): PPLWorkoutDatabase {
+            // Create the database if it doesn't exist
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     PPLWorkoutDatabase::class.java,
                     "ppl_workout_database"
                 )
-                    .addCallback(PPLWorkoutDatabaseCallback())
-                    .addMigrations(
-                        MIGRATION_6_7,
-                        MIGRATION_7_8,
-                        MIGRATION_8_9,
-                        MIGRATION_9_10
-                    )  // Fixed: use addMigrations instead of addMigration
-                    .fallbackToDestructiveMigration()
-                    // Force database recreation to ensure clean state
-                    .build()
+                .addCallback(PPLWorkoutDatabaseCallback())
+                .addMigrations(
+                    MIGRATION_6_7,
+                    MIGRATION_7_8,
+                    MIGRATION_8_9,
+                    MIGRATION_9_10,
+                    MIGRATION_10_11
+                )
+                .build()
 
                 INSTANCE = instance
                 instance
@@ -362,8 +401,8 @@ abstract class PPLWorkoutDatabase : RoomDatabase() {
             }
         }
 
+        // Helper function to get exercises
         private fun getPPLExercises(): List<Exercise> {
-            // Delegate to the new ExerciseData class for better organization
             return ExerciseData.getPPLExercises()
         }
     }
